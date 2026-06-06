@@ -83,11 +83,16 @@ html, body {
 
 .calendar-card.collapsed .calendar-header {
     cursor: grab;
+    touch-action: none;
 }
 
 .calendar-card.collapsed .calendar-header.dragging {
     cursor: grabbing;
     user-select: none;
+}
+
+.calendar-card.collapsed.position-locked .calendar-header {
+    cursor: default;
 }
 
 .calendar-header-left {
@@ -136,6 +141,63 @@ html, body {
     background: rgba(255, 255, 255, 0.12);
 }
 
+.position-lock-btn {
+    display: none;
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.calendar-card.collapsed .position-lock-btn {
+    display: inline-flex;
+}
+
+.position-lock-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.position-lock-btn::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    width: 10px;
+    height: 9px;
+    border: 2px solid currentColor;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    opacity: 0.9;
+}
+
+.position-lock-btn::after {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 13px;
+    width: 14px;
+    height: 10px;
+    border-radius: 3px;
+    background: currentColor;
+    opacity: 0.9;
+}
+
+.position-lock-btn.locked::before {
+    left: 7px;
+}
+
+.position-lock-btn:not(.locked)::before {
+    left: 11px;
+    top: 5px;
+    transform: rotate(28deg);
+    transform-origin: 2px 9px;
+}
+
 .header-title {
     font-size: 1.1rem;
     font-weight: 600;
@@ -150,41 +212,41 @@ html, body {
     font-variant-numeric: tabular-nums;
 }
 
-.view-tabs {
-    display: flex;
-    gap: 4px;
-    max-width: 240px;
+.view-select {
+    min-width: 118px;
+    max-width: 150px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 6px 28px 6px 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
     opacity: 1;
     visibility: visible;
     transition: opacity 0.25s ease, max-width 0.35s ease, visibility 0.25s ease;
 }
 
-.calendar-card.collapsed .view-tabs {
+.view-select:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.view-select:focus {
+    outline: 2px solid var(--accent-color, #3a588e);
+    outline-offset: 0;
+}
+
+.view-select option {
+    background: #101318;
+    color: #fff;
+}
+
+.calendar-card.collapsed .view-select {
     max-width: 0;
     opacity: 0;
     visibility: hidden;
-    overflow: hidden;
     pointer-events: none;
-}
-
-.view-tab {
-    border: none;
-    border-radius: 8px;
-    padding: 6px 10px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.65);
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
-.view-tab:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-}
-
-.view-tab.active {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
 }
 
 .calendar-body {
@@ -197,6 +259,45 @@ html, body {
     visibility: visible;
     transition: opacity 0.25s ease, max-height 0.35s ease,
         padding 0.35s ease, visibility 0.25s ease;
+}
+
+.calendar-body,
+.event-panel,
+.settings-panel,
+.custom-select-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) rgba(255, 255, 255, 0.06);
+}
+
+.calendar-body::-webkit-scrollbar,
+.event-panel::-webkit-scrollbar,
+.settings-panel::-webkit-scrollbar,
+.custom-select-list::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.calendar-body::-webkit-scrollbar-track,
+.event-panel::-webkit-scrollbar-track,
+.settings-panel::-webkit-scrollbar-track,
+.custom-select-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+}
+
+.calendar-body::-webkit-scrollbar-thumb,
+.event-panel::-webkit-scrollbar-thumb,
+.settings-panel::-webkit-scrollbar-thumb,
+.custom-select-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+}
+
+.calendar-body::-webkit-scrollbar-thumb:hover,
+.event-panel::-webkit-scrollbar-thumb:hover,
+.settings-panel::-webkit-scrollbar-thumb:hover,
+.custom-select-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.34);
 }
 
 .calendar-footer {
@@ -219,11 +320,22 @@ html, body {
     display: none;
 }
 
+.view-panel {
+    min-height: 100%;
+}
+
+#view-month {
+    height: 100%;
+}
+
 /* Month view */
 .month-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: auto repeat(6, minmax(0, 1fr));
     gap: 4px;
+    height: 100%;
+    min-height: 360px;
 }
 
 .weekday-label {
@@ -236,8 +348,7 @@ html, body {
 }
 
 .day-cell {
-    aspect-ratio: 1;
-    min-height: 64px;
+    min-height: 0;
     border-radius: 10px;
     padding: 6px;
     background: rgba(255, 255, 255, 0.03);

@@ -227,6 +227,8 @@ function setView(view) {
         closeEventForm();
     }
     currentView = view;
+    const select = document.getElementById("view-select");
+    if (select) select.value = view;
     document.querySelectorAll(".view-tab").forEach((tab) => {
         tab.classList.toggle("active", tab.dataset.view === view);
     });
@@ -252,15 +254,20 @@ function updateHeaderTitle() {
     if (!el) return;
 
     if (currentView === "month") {
-        el.textContent = displayMonth.toLocaleDateString(undefined, {
+        el.textContent = capitalizeFirstLetter(displayMonth.toLocaleDateString(undefined, {
             month: "long",
             year: "numeric"
-        });
+        }));
     } else if (currentView === "day") {
         el.textContent = formatDateHeader(new Date());
     } else {
         el.textContent = "Upcoming Events";
     }
+}
+
+function capitalizeFirstLetter(text) {
+    if (!text) return "";
+    return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
 
 function viewModeFromWeValue(value) {

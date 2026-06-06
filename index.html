@@ -25,12 +25,13 @@
                 <span id="header-clock" class="header-clock"></span>
                 <button id="add-event-btn" class="header-action-btn" type="button">+ Event</button>
                 <button id="settings-btn" class="header-action-btn" type="button" title="Settings">Settings</button>
+                <button id="position-lock-btn" class="position-lock-btn" type="button" aria-label="Lock position" title="Lock position"></button>
                 <input id="wallpaper-file" type="file" accept="image/*" class="hidden-input">
-                <div class="view-tabs">
-                    <button type="button" class="view-tab active" data-view="month">Month</button>
-                    <button type="button" class="view-tab" data-view="day">Day</button>
-                    <button type="button" class="view-tab" data-view="upcoming">Upcoming</button>
-                </div>
+                <select id="view-select" class="view-select" aria-label="Calendar view">
+                    <option value="month">Month</option>
+                    <option value="day">Day</option>
+                    <option value="upcoming">Upcoming</option>
+                </select>
             </div>
         </header>
 

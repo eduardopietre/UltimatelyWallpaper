@@ -6,6 +6,7 @@ const AppConfig = {
     cacheKey: "icloudCalendarCache",
     collapsedKey: "calendarCollapsed",
     positionKey: "calendarPosition",
+    positionLockKey: "calendarPositionLocked",
     sizeKey: "calendarSize",
     wallpaperPrefsKey: "wallpaperPrefs",
     lastCalendarIdKey: "lastCalendarId",

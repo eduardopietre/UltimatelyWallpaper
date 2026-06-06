@@ -41,6 +41,12 @@ function initCollapse() {
 }
 
 function initViewTabs() {
+    const select = document.getElementById("view-select");
+    if (select) {
+        select.addEventListener("change", () => setView(select.value));
+        return;
+    }
+
     document.querySelectorAll(".view-tab").forEach((tab) => {
         tab.addEventListener("click", () => setView(tab.dataset.view));
     });
