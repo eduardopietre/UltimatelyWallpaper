@@ -15,6 +15,12 @@ function setCollapsed(collapsed, persist = true) {
 
     card.classList.toggle("collapsed", collapsed);
     btn.textContent = collapsed ? "+" : "−";
+    if (collapsed && typeof isEventFormVisible === "function" && isEventFormVisible()) {
+        closeEventForm();
+    }
+    if (typeof applyCardPosition === "function") {
+        applyCardPosition(collapsed);
+    }
     if (persist) {
         localStorage.setItem(AppConfig.collapsedKey, collapsed ? "1" : "0");
     }
@@ -37,15 +43,45 @@ function initViewTabs() {
     });
 }
 
+function initSyncButton() {
+    const btn = document.getElementById("sync-btn");
+    if (!btn || typeof triggerSync !== "function") return;
+    btn.addEventListener("click", () => triggerSync(btn));
+}
+
 function initApp() {
+    if (typeof loadWallpaperPrefs === "function") loadWallpaperPrefs();
     applyBackground();
     applyCalendarBackground();
+    initPosition();
     initCollapse();
     initViewTabs();
+    initMonthNav();
+    initSyncButton();
+    if (typeof initWallpaperPicker === "function") initWallpaperPicker();
+    if (typeof initEventForm === "function") initEventForm();
     setView(AppConfig.defaultView);
     updateClock();
     setInterval(updateClock, AppConfig.clockIntervalMs);
     startPolling();
 }
 
-document.addEventListener("DOMContentLoaded", initApp);
+function initGlobalErrorHandlers() {
+    window.addEventListener("unhandledrejection", (event) => {
+        event.preventDefault();
+        console.error("Unhandled promise rejection:", event.reason);
+        if (typeof updateSyncStatus === "function") {
+            updateSyncStatus("An error occurred — check sync service");
+        }
+    });
+
+    window.addEventListener("error", (event) => {
+        console.error("Unhandled error:", event.error || event.message);
+        event.preventDefault();
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initGlobalErrorHandlers();
+    initApp();
+});

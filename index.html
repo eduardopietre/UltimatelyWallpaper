@@ -9,14 +9,23 @@
 <body>
     <div id="wallpaper-bg" class="wallpaper-bg"></div>
 
-    <div id="calendar-card" class="calendar-card">
+    <div id="calendar-card" class="calendar-card centered">
         <header class="calendar-header">
             <div class="calendar-header-left">
                 <button id="collapse-btn" class="collapse-btn" type="button" aria-label="Toggle calendar">−</button>
+                <div id="month-nav" class="month-nav">
+                    <button id="month-prev" class="month-nav-btn" type="button" aria-label="Previous month">‹</button>
+                    <button id="month-next" class="month-nav-btn" type="button" aria-label="Next month">›</button>
+                    <button id="month-today" class="month-nav-btn month-today-btn hidden" type="button">Today</button>
+                </div>
                 <h1 id="header-title" class="header-title"></h1>
             </div>
             <div class="calendar-header-right">
                 <span id="header-clock" class="header-clock"></span>
+                <button id="add-event-btn" class="header-action-btn" type="button">+ Event</button>
+                <button id="wallpaper-btn" class="header-action-btn" type="button" title="Choose wallpaper">Wallpaper</button>
+                <button id="wallpaper-solid-btn" class="header-action-btn" type="button" title="Solid background">Solid</button>
+                <input id="wallpaper-file" type="file" accept="image/*" class="hidden-input">
                 <div class="view-tabs">
                     <button type="button" class="view-tab active" data-view="month">Month</button>
                     <button type="button" class="view-tab" data-view="day">Day</button>
@@ -32,9 +41,12 @@
         </div>
 
         <footer class="calendar-footer">
+            <button id="sync-btn" class="sync-btn" type="button">Sync</button>
             <span id="sync-status" class="sync-status"></span>
         </footer>
     </div>
+
+    <div id="event-panel-host" class="event-panel hidden"></div>
 
     <div id="offline-badge" class="offline-badge hidden">Sync service offline</div>
 
@@ -42,6 +54,9 @@
     <script src="js/background.js"></script>
     <script src="js/api.js"></script>
     <script src="js/views.js"></script>
+    <script src="js/position.js"></script>
+    <script src="js/wallpaperPicker.js"></script>
+    <script src="js/eventForm.js"></script>
     <script src="js/wpListener.js"></script>
     <script src="js/app.js"></script>
 </body>

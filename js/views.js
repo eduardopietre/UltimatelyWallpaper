@@ -58,6 +58,49 @@ function upcomingEvents(limitDays = 14) {
         .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
+function isSameMonth(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function changeMonth(delta) {
+    displayMonth = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + delta, 1);
+    refreshCalendarData();
+}
+
+function goToToday() {
+    displayMonth = new Date();
+    refreshCalendarData();
+}
+
+function initMonthNav() {
+    document.getElementById("month-prev")?.addEventListener("click", () => changeMonth(-1));
+    document.getElementById("month-next")?.addEventListener("click", () => changeMonth(1));
+    document.getElementById("month-today")?.addEventListener("click", goToToday);
+}
+
+function updateMonthNavVisibility() {
+    const nav = document.getElementById("month-nav");
+    const todayBtn = document.getElementById("month-today");
+    if (nav) {
+        nav.classList.toggle("hidden", currentView !== "month");
+    }
+    if (todayBtn) {
+        todayBtn.classList.toggle("hidden", isSameMonth(displayMonth, new Date()));
+    }
+}
+
+function attachDayCellHandlers(container) {
+    container.querySelectorAll(".day-cell").forEach((cell) => {
+        cell.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const ts = cell.dataset.date;
+            if (!ts || typeof openEventForm !== "function") return;
+            const startDate = new Date(parseInt(ts, 10));
+            openEventForm({ startDate });
+        });
+    });
+}
+
 function getMonthGridDates(year, month) {
     const first = new Date(year, month, 1);
     let startOffset = first.getDay();
@@ -97,7 +140,7 @@ function renderMonthView() {
         if (!inMonth) classes.push("other-month");
         if (isToday) classes.push("today");
 
-        html += `<div class="${classes.join(" ")}">`;
+        html += `<div class="${classes.join(" ")}" data-date="${date.getTime()}">`;
         html += `<span class="day-number">${date.getDate()}</span>`;
         html += '<div class="day-events">';
         const shown = dayEvents.slice(0, 3);
@@ -111,6 +154,7 @@ function renderMonthView() {
     }
     html += "</div>";
     container.innerHTML = html;
+    attachDayCellHandlers(container);
 }
 
 function renderDayView() {
@@ -179,6 +223,9 @@ function escapeHtml(text) {
 }
 
 function setView(view) {
+    if (typeof isEventFormVisible === "function" && isEventFormVisible()) {
+        closeEventForm();
+    }
     currentView = view;
     document.querySelectorAll(".view-tab").forEach((tab) => {
         tab.classList.toggle("active", tab.dataset.view === view);
@@ -191,6 +238,10 @@ function setView(view) {
 
 function renderCurrentView() {
     updateHeaderTitle();
+    updateMonthNavVisibility();
+    if (typeof isEventFormVisible === "function" && isEventFormVisible()) {
+        return;
+    }
     if (currentView === "month") renderMonthView();
     else if (currentView === "day") renderDayView();
     else renderUpcomingView();
