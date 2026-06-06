@@ -1,0 +1,13 @@
+.cursor/*
+sync-service/*
+.venv/*
+.env
+config.toml
+cache/*
+__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz

@@ -1,0 +1,17 @@
+{
+	"contentrating": "Everyone",
+	"description": "Calendar Wallpaper",
+	"file": "index.html",
+	"general": {
+		"properties": {
+		},
+		"supportsaudioprocessing": false
+	},
+	"preview": "none",
+	"ratingsex": "none",
+	"ratingviolence": "none",
+	"tags": ["Technology", "Customizable"],
+	"title": "iCloud Calendar Wallpaper",
+	"type": "Web",
+	"version": 1
+}
