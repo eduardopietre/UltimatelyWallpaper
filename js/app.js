@@ -41,14 +41,41 @@ function initCollapse() {
 }
 
 function initViewTabs() {
-    const select = document.getElementById("view-select");
-    if (select) {
-        select.addEventListener("change", () => setView(select.value));
-        return;
-    }
+    const wrap = document.getElementById("view-dropdown");
+    const trigger = document.getElementById("view-trigger");
+    const list = document.getElementById("view-list");
+    const hidden = document.getElementById("view-mode");
+    if (!wrap || !trigger || !list || !hidden) return;
 
-    document.querySelectorAll(".view-tab").forEach((tab) => {
-        tab.addEventListener("click", () => setView(tab.dataset.view));
+    wrap._customSelectOptions = [
+        { value: "month", label: "Month" },
+        { value: "day", label: "Day" },
+        { value: "upcoming", label: "Upcoming" }
+    ];
+
+    trigger.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const willOpen = list.classList.contains("hidden");
+        if (typeof closeAllCustomSelects === "function") {
+            closeAllCustomSelects(wrap);
+        }
+        list.classList.toggle("hidden", !willOpen);
+        wrap.classList.toggle("open", willOpen);
+        trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+
+    list.querySelectorAll(".custom-select-option").forEach((option) => {
+        option.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const view = option.dataset.value;
+            hidden.value = view;
+            setView(view);
+            list.classList.add("hidden");
+            wrap.classList.remove("open");
+            trigger.setAttribute("aria-expanded", "false");
+        });
     });
 }
 

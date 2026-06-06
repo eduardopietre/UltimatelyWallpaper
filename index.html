@@ -27,11 +27,17 @@
                 <button id="settings-btn" class="header-action-btn" type="button" title="Settings">Settings</button>
                 <button id="position-lock-btn" class="position-lock-btn" type="button" aria-label="Lock position" title="Lock position"></button>
                 <input id="wallpaper-file" type="file" accept="image/*" class="hidden-input">
-                <select id="view-select" class="view-select" aria-label="Calendar view">
-                    <option value="month">Month</option>
-                    <option value="day">Day</option>
-                    <option value="upcoming">Upcoming</option>
-                </select>
+                <div id="view-dropdown" class="view-dropdown custom-select" aria-label="Calendar view">
+                    <input id="view-mode" type="hidden" value="month">
+                    <div class="custom-select-control">
+                        <button id="view-trigger" class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">Month</button>
+                        <div id="view-list" class="custom-select-list hidden" role="listbox">
+                            <button class="custom-select-option active" type="button" data-value="month" role="option" aria-selected="true">Month</button>
+                            <button class="custom-select-option" type="button" data-value="day" role="option" aria-selected="false">Day</button>
+                            <button class="custom-select-option" type="button" data-value="upcoming" role="option" aria-selected="false">Upcoming</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 

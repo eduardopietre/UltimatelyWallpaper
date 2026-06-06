@@ -227,11 +227,7 @@ function setView(view) {
         closeEventForm();
     }
     currentView = view;
-    const select = document.getElementById("view-select");
-    if (select) select.value = view;
-    document.querySelectorAll(".view-tab").forEach((tab) => {
-        tab.classList.toggle("active", tab.dataset.view === view);
-    });
+    syncViewDropdown(view);
     document.getElementById("view-month").classList.toggle("hidden", view !== "month");
     document.getElementById("view-day").classList.toggle("hidden", view !== "day");
     document.getElementById("view-upcoming").classList.toggle("hidden", view !== "upcoming");
@@ -263,6 +259,23 @@ function updateHeaderTitle() {
     } else {
         el.textContent = "Upcoming Events";
     }
+}
+
+function syncViewDropdown(view) {
+    const hidden = document.getElementById("view-mode");
+    const trigger = document.getElementById("view-trigger");
+    const wrap = document.getElementById("view-dropdown");
+    if (hidden) hidden.value = view;
+    if (wrap && typeof syncCustomSelectDisplay === "function") {
+        syncCustomSelectDisplay(wrap, view);
+    } else if (trigger) {
+        trigger.textContent = view === "day" ? "Day" : view === "upcoming" ? "Upcoming" : "Month";
+    }
+    document.querySelectorAll("#view-list .custom-select-option").forEach((option) => {
+        const active = option.dataset.value === view;
+        option.classList.toggle("active", active);
+        option.setAttribute("aria-selected", active ? "true" : "false");
+    });
 }
 
 function capitalizeFirstLetter(text) {

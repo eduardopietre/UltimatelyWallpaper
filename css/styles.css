@@ -212,41 +212,32 @@ html, body {
     font-variant-numeric: tabular-nums;
 }
 
-.view-select {
-    min-width: 118px;
-    max-width: 150px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    padding: 6px 28px 6px 10px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-    cursor: pointer;
-    font: inherit;
-    font-size: 0.8rem;
+.view-dropdown {
+    width: 128px;
+    max-width: 128px;
     opacity: 1;
     visibility: visible;
     transition: opacity 0.25s ease, max-width 0.35s ease, visibility 0.25s ease;
 }
 
-.view-select:hover {
+.view-dropdown .custom-select-trigger {
+    min-height: 30px;
+    padding: 6px 10px;
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 0.8rem;
+}
+
+.view-dropdown .custom-select-trigger:hover {
     background: rgba(255, 255, 255, 0.12);
 }
 
-.view-select:focus {
-    outline: 2px solid var(--accent-color, #3a588e);
-    outline-offset: 0;
-}
-
-.view-select option {
-    background: #101318;
-    color: #fff;
-}
-
-.calendar-card.collapsed .view-select {
+.calendar-card.collapsed .view-dropdown {
     max-width: 0;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    overflow: hidden;
 }
 
 .calendar-body {
