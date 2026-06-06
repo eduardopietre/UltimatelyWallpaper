@@ -21,6 +21,9 @@ function setCollapsed(collapsed, persist = true) {
     if (typeof applyCardPosition === "function") {
         applyCardPosition(collapsed);
     }
+    if (typeof applyCardSizeForState === "function") {
+        applyCardSizeForState(collapsed);
+    }
     if (persist) {
         localStorage.setItem(AppConfig.collapsedKey, collapsed ? "1" : "0");
     }
@@ -54,10 +57,12 @@ function initApp() {
     applyBackground();
     applyCalendarBackground();
     initPosition();
+    if (typeof initResize === "function") initResize();
     initCollapse();
     initViewTabs();
     initMonthNav();
     initSyncButton();
+    if (typeof initSettingsPanel === "function") initSettingsPanel();
     if (typeof initWallpaperPicker === "function") initWallpaperPicker();
     if (typeof initEventForm === "function") initEventForm();
     setView(AppConfig.defaultView);
@@ -71,7 +76,7 @@ function initGlobalErrorHandlers() {
         event.preventDefault();
         console.error("Unhandled promise rejection:", event.reason);
         if (typeof updateSyncStatus === "function") {
-            updateSyncStatus("An error occurred — check sync service");
+            updateSyncStatus("An error occurred, check sync service");
         }
     });
 

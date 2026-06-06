@@ -41,7 +41,7 @@ function toTimeInputValue(date) {
 function parseDateText(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || "").trim());
     if (!match) {
-        throw new Error("Invalid date — use YYYY-MM-DD");
+        throw new Error("Invalid date, use YYYY-MM-DD");
     }
     const year = parseInt(match[1], 10);
     const month = parseInt(match[2], 10);
@@ -52,7 +52,7 @@ function parseDateText(value) {
         date.getMonth() !== month - 1 ||
         date.getDate() !== day
     ) {
-        throw new Error("Invalid date — use YYYY-MM-DD");
+        throw new Error("Invalid date, use YYYY-MM-DD");
     }
     return date;
 }
@@ -60,12 +60,12 @@ function parseDateText(value) {
 function parseTimeText(value) {
     const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
     if (!match) {
-        throw new Error("Invalid time — use HH:MM");
+        throw new Error("Invalid time, use HH:MM");
     }
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
     if (hours > 23 || minutes > 59) {
-        throw new Error("Invalid time — use HH:MM");
+        throw new Error("Invalid time, use HH:MM");
     }
     return { hours, minutes };
 }
@@ -479,7 +479,7 @@ function buildEventPayload() {
 
     const cal = getSelectedCalendar();
     if (!cal || !cal.id) {
-        throw new Error("No calendar available — run sync first");
+        throw new Error("No calendar available, run sync first");
     }
 
     try {
@@ -522,9 +522,9 @@ async function submitEventForm() {
         if (errorEl) errorEl.textContent = "";
         const result = await createEvent(payload);
         if (result?.syncFailed && typeof updateSyncStatus === "function") {
-            updateSyncStatus("Event created — sync cache update failed");
+            updateSyncStatus("Event created, sync cache update failed");
         } else if (result?.refreshFailed && typeof updateSyncStatus === "function") {
-            updateSyncStatus("Event created — calendar refresh failed");
+            updateSyncStatus("Event created, calendar refresh failed");
         }
         closeEventForm();
     } catch (err) {

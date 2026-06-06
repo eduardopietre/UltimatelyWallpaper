@@ -26,7 +26,8 @@ html, body {
     top: var(--card-y, 50%);
     left: var(--card-x, 50%);
     transform: translate(-50%, -50%);
-    width: min(920px, 92vw);
+    width: min(var(--card-width, 920px), 92vw);
+    height: var(--card-height, auto);
     max-height: 88vh;
     display: flex;
     flex-direction: column;
@@ -36,7 +37,7 @@ html, body {
     overflow: hidden;
     z-index: 5;
     transition: top 0.35s ease, left 0.35s ease, transform 0.35s ease,
-        max-height 0.35s ease, width 0.35s ease;
+        max-height 0.35s ease, width 0.35s ease, height 0.35s ease;
 }
 
 .calendar-card.centered {
@@ -49,15 +50,25 @@ html, body {
     transition: max-height 0.35s ease, width 0.35s ease;
 }
 
+.calendar-card.resizing {
+    transition: none;
+}
+
 .calendar-card.collapsed {
     width: min(420px, 90vw);
+    height: auto;
     max-height: 72px;
 }
 
 .calendar-card.collapsed .calendar-body,
-.calendar-card.collapsed .calendar-footer,
-.calendar-card.collapsed .view-tabs {
-    display: none;
+.calendar-card.collapsed .calendar-footer {
+    max-height: 0;
+    opacity: 0;
+    visibility: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
 }
 
 .calendar-header {
@@ -93,6 +104,22 @@ html, body {
     flex-shrink: 0;
 }
 
+.sync-health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.sync-health-dot.online {
+    background: #39d353;
+}
+
+.sync-health-dot.offline {
+    background: #f05252;
+}
+
 .collapse-btn {
     width: 28px;
     height: 28px;
@@ -126,6 +153,18 @@ html, body {
 .view-tabs {
     display: flex;
     gap: 4px;
+    max-width: 240px;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, max-width 0.35s ease, visibility 0.25s ease;
+}
+
+.calendar-card.collapsed .view-tabs {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+    overflow: hidden;
+    pointer-events: none;
 }
 
 .view-tab {
@@ -153,12 +192,22 @@ html, body {
     overflow: auto;
     flex: 1;
     position: relative;
+    max-height: 100vh;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, max-height 0.35s ease,
+        padding 0.35s ease, visibility 0.25s ease;
 }
 
 .calendar-footer {
     padding: 8px 18px 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     flex-shrink: 0;
+    max-height: 64px;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, max-height 0.35s ease,
+        padding 0.35s ease, visibility 0.25s ease;
 }
 
 .sync-status {
@@ -167,21 +216,6 @@ html, body {
 }
 
 .view-panel.hidden {
-    display: none;
-}
-
-.offline-badge {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    background: rgba(180, 60, 60, 0.85);
-    font-size: 0.8rem;
-    z-index: 10;
-}
-
-.offline-badge.hidden {
     display: none;
 }
 
@@ -394,6 +428,38 @@ html, body {
     cursor: not-allowed;
 }
 
+.calendar-resize-handle {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    opacity: 0.55;
+    z-index: 6;
+}
+
+.calendar-resize-handle::before,
+.calendar-resize-handle::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid rgba(255, 255, 255, 0.45);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+}
+
+.calendar-resize-handle::after {
+    width: 6px;
+    height: 6px;
+}
+
+.calendar-card.collapsed .calendar-resize-handle {
+    display: none;
+}
+
 .day-cell {
     cursor: pointer;
 }
@@ -402,7 +468,7 @@ html, body {
     background: rgba(255, 255, 255, 0.06);
 }
 
-/* Event form panel (outside calendar-card — avoids CEF crash inside transformed parent) */
+/* Event form panel (outside calendar-card, avoids CEF crash inside transformed parent) */
 .event-panel {
     position: fixed;
     z-index: 20;
@@ -418,6 +484,133 @@ html, body {
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: #101318;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.settings-panel {
+    position: fixed;
+    z-index: 24;
+    top: 10vh;
+    left: 0;
+    right: 0;
+    width: min(520px, 92vw);
+    max-height: 80vh;
+    margin: 0 auto;
+    overflow: auto;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #101318;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.settings-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.settings-panel-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.settings-panel-close {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.settings-panel-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    opacity: 0.62;
+    text-transform: uppercase;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-btn {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+}
+
+.settings-field span {
+    opacity: 0.75;
+}
+
+.settings-field input {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.settings-field input:focus {
+    outline: 2px solid var(--accent-color, #3a588e);
+    outline-offset: 0;
+}
+
+.settings-hint {
+    min-height: 1.1em;
+    font-size: 0.76rem;
+    opacity: 0.58;
+}
+
+.settings-error {
+    min-height: 1.2em;
+    color: #f08080;
+    font-size: 0.8rem;
+}
+
+.settings-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
 .event-panel-header {

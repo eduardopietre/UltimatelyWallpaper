@@ -23,7 +23,7 @@ function saveWallpaperPrefs() {
         );
     } catch {
         if (typeof updateSyncStatus === "function") {
-            updateSyncStatus("Wallpaper too large to save — image not persisted");
+            updateSyncStatus("Wallpaper too large to save, image not persisted");
         }
     }
 }

@@ -1,10 +1,12 @@
 const AppConfig = {
     syncPort: 8765,
     pollIntervalMs: 5 * 60 * 1000,
+    healthIntervalMs: 5 * 60 * 1000,
     clockIntervalMs: 1000,
     cacheKey: "icloudCalendarCache",
     collapsedKey: "calendarCollapsed",
     positionKey: "calendarPosition",
+    sizeKey: "calendarSize",
     wallpaperPrefsKey: "wallpaperPrefs",
     lastCalendarIdKey: "lastCalendarId",
     defaultView: "month",

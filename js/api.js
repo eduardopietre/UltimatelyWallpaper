@@ -1,6 +1,7 @@
 let calendarData = { updatedAt: null, calendars: [], events: [] };
 let isOnline = true;
 let syncInProgress = false;
+let healthTimer = null;
 
 function readCache() {
     try {
@@ -38,6 +39,40 @@ function setOnlineStatus(online) {
 function updateSyncStatus(text) {
     const el = document.getElementById("sync-status");
     if (el) el.textContent = text;
+}
+
+function updateHealthIndicator(online) {
+    const dot = document.getElementById("sync-health-dot");
+    if (!dot) return;
+    dot.classList.toggle("online", online);
+    dot.classList.toggle("offline", !online);
+    const label = online ? "Sync service online" : "Sync service offline";
+    dot.title = label;
+    dot.setAttribute("aria-label", label);
+}
+
+async function checkSyncHealth() {
+    try {
+        const base = getSyncBaseUrl();
+        const response = await fetch(`${base}/health`, {
+            method: "GET",
+            cache: "no-store"
+        });
+        const online = response.ok;
+        updateHealthIndicator(online);
+        setOnlineStatus(online);
+        return online;
+    } catch {
+        updateHealthIndicator(false);
+        setOnlineStatus(false);
+        return false;
+    }
+}
+
+function startHealthChecks() {
+    checkSyncHealth();
+    if (healthTimer) window.clearInterval(healthTimer);
+    healthTimer = window.setInterval(checkSyncHealth, AppConfig.healthIntervalMs);
 }
 
 function getFetchDateRange() {
@@ -80,6 +115,32 @@ async function fetchCalendars() {
     return response.json();
 }
 
+async function fetchSyncSettings() {
+    const base = getSyncBaseUrl();
+    const response = await fetch(`${base}/settings`, {
+        method: "GET",
+        cache: "no-store"
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+}
+
+async function saveSyncSettings(payload) {
+    const base = getSyncBaseUrl();
+    const response = await fetch(`${base}/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        cache: "no-store"
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    await checkSyncHealth();
+    return data;
+}
+
 function getCalendars() {
     return calendarData.calendars || [];
 }
@@ -113,7 +174,7 @@ async function refreshCalendarData() {
             if (typeof populateCalendarSelect === "function") populateCalendarSelect();
         }
         setOnlineStatus(false);
-        updateSyncStatus("Using cached data — sync service unavailable");
+        updateSyncStatus("Using cached data, sync service unavailable");
         return false;
     }
 }
@@ -131,11 +192,13 @@ async function triggerSync(buttonEl) {
             cache: "no-store"
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        await checkSyncHealth();
         await refreshCalendarData();
         return true;
     } catch {
-        updateSyncStatus("Sync failed — sync service unavailable");
-        setOnlineStatus(false);
+        const healthy = await checkSyncHealth();
+        updateSyncStatus("Sync failed, sync service unavailable");
+        if (!healthy) setOnlineStatus(false);
         return false;
     } finally {
         syncInProgress = false;
@@ -178,7 +241,7 @@ async function createEvent(payload) {
             cache: "no-store"
         });
     } catch {
-        throw new Error("Sync service unavailable — could not create event");
+        throw new Error("Sync service unavailable, could not create event");
     }
 
     const data = await parseJsonResponse(response);
@@ -203,4 +266,5 @@ function getEvents() {
 function startPolling() {
     refreshCalendarData();
     setInterval(refreshCalendarData, AppConfig.pollIntervalMs);
+    startHealthChecks();
 }
