@@ -47,6 +47,64 @@ function setSettingsTab(tabName) {
     });
 }
 
+function createNotesFolderPicker(parent) {
+    const wrap = document.createElement("div");
+    wrap.className = "settings-field settings-folder-field";
+
+    const label = document.createElement("span");
+    label.textContent = "Notes folder";
+
+    const row = document.createElement("div");
+    row.className = "settings-folder-row";
+
+    const pathInput = document.createElement("input");
+    pathInput.id = "settings-notes-folder-path";
+    pathInput.type = "text";
+    pathInput.readOnly = true;
+    pathInput.placeholder = "No folder selected";
+    pathInput.setAttribute("aria-readonly", "true");
+
+    const browseBtn = document.createElement("button");
+    browseBtn.id = "settings-notes-folder-browse";
+    browseBtn.type = "button";
+    browseBtn.className = "settings-btn";
+    browseBtn.textContent = "Browse...";
+    browseBtn.addEventListener("click", () => {
+        browseNotesFolder().catch((err) => {
+            showSettingsError(err.message || "Failed to pick folder");
+        });
+    });
+
+    row.appendChild(pathInput);
+    row.appendChild(browseBtn);
+    wrap.appendChild(label);
+    wrap.appendChild(row);
+    parent.appendChild(wrap);
+}
+
+function updateNotesFolderControls() {
+    const enabled = Boolean(document.getElementById("settings-notes-enabled")?.checked);
+    const pathInput = document.getElementById("settings-notes-folder-path");
+    if (pathInput) {
+        pathInput.classList.toggle("settings-folder-empty", !pathInput.value.trim());
+        pathInput.placeholder = enabled ? "No folder selected" : "Select a folder with Browse...";
+    }
+}
+
+async function browseNotesFolder() {
+    const browseBtn = document.getElementById("settings-notes-folder-browse");
+    const current = document.getElementById("settings-notes-folder-path")?.value.trim() || "";
+    if (browseBtn) browseBtn.disabled = true;
+    try {
+        const data = await pickNotesFolder(current);
+        if (data.cancelled) return;
+        setSettingsFieldValue("settings-notes-folder-path", data.folderPath || "");
+        showSettingsError("");
+    } finally {
+        updateNotesFolderControls();
+    }
+}
+
 function buildSettingsPanelDom() {
     if (settingsPanelBuilt) return true;
     const host = document.getElementById("settings-panel-host");
@@ -160,11 +218,12 @@ function buildSettingsPanelDom() {
     notesTitle.textContent = "Notes Window";
     notesSection.appendChild(notesTitle);
     createSettingsToggle(notesSection, "Enable notes window", "settings-notes-enabled");
-    createSettingsField(notesSection, "NOTES_FOLDER_PATH", "settings-notes-folder-path", "text", "C:\\Users\\You\\Documents\\Notes");
+    createNotesFolderPicker(notesSection);
+    document.getElementById("settings-notes-enabled")?.addEventListener("change", updateNotesFolderControls);
 
     const notesHint = document.createElement("p");
     notesHint.className = "settings-hint";
-    notesHint.textContent = "Use an existing folder. Markdown files in subfolders are included.";
+    notesHint.textContent = "Choose a folder with markdown files. Subfolders are included.";
     notesSection.appendChild(notesHint);
     notesPanel.appendChild(notesSection);
 
@@ -228,6 +287,7 @@ async function loadSettingsIntoForm() {
         setSettingsFieldValue("settings-sync-interval", String(settings.syncIntervalMinutes || 10));
         setSettingsCheckboxValue("settings-notes-enabled", settings.notesEnabled);
         setSettingsFieldValue("settings-notes-folder-path", settings.notesFolderPath || "");
+        updateNotesFolderControls();
         const hint = document.getElementById("settings-password-hint");
         if (hint) {
             hint.textContent = settings.hasAppPassword
@@ -254,7 +314,7 @@ function readSettingsPayload() {
         throw new Error("SYNC_INTERVAL_MINUTES must be a positive integer");
     }
     if (notesEnabled && !notesFolderPath) {
-        throw new Error("NOTES_FOLDER_PATH is required when notes are enabled");
+        throw new Error("Select a notes folder before enabling notes");
     }
 
     return { appleId, appPassword, syncIntervalMinutes, notesEnabled, notesFolderPath };

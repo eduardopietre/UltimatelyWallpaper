@@ -3,11 +3,18 @@ import unittest
 from pathlib import Path
 
 from notes import (
+    add_subtask,
+    add_task,
+    delete_task,
+    indent_task,
     list_markdown_files,
+    move_task,
+    outdent_task,
     parse_markdown_tasks,
     read_note_file,
     resolve_note_file,
     set_task_checked,
+    update_task_text,
 )
 
 
@@ -79,6 +86,56 @@ class NotesTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 set_task_checked(str(root), "tasks.md", 0, True, "Original")
+
+    def test_resolve_initial_dir_falls_back_to_home(self):
+        from notes import _resolve_initial_dir
+
+        home = _resolve_initial_dir("")
+        self.assertTrue(Path(home).is_dir())
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(_resolve_initial_dir(tmp), str(Path(tmp).resolve()))
+
+    def test_add_and_edit_task(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            note = root / "tasks.md"
+            note.write_text("- [ ] First\n", encoding="utf-8")
+
+            added = add_task(str(root), "tasks.md", "Second")
+            self.assertEqual(len(added["tasks"]), 2)
+            self.assertEqual(added["tasks"][1]["text"], "Second")
+
+            edited = update_task_text(str(root), "tasks.md", 0, "Updated first", "First")
+            self.assertEqual(edited["tasks"][0]["text"], "Updated first")
+            self.assertFalse(edited["tasks"][0]["checked"])
+
+    def test_subtask_move_indent_and_delete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            note = root / "tasks.md"
+            note.write_text("- [ ] Parent\n- [ ] Sibling\n", encoding="utf-8")
+
+            sub = add_subtask(str(root), "tasks.md", 0, "Child", "Parent")
+            self.assertEqual(sub["tasks"][1]["text"], "Child")
+            self.assertEqual(sub["tasks"][1]["depth"], 1)
+
+            moved = move_task(str(root), "tasks.md", 2, "up", "Sibling")
+            self.assertEqual(moved["tasks"][0]["text"], "Sibling")
+            self.assertEqual(moved["tasks"][1]["text"], "Parent")
+            self.assertEqual(moved["tasks"][2]["text"], "Child")
+
+            indented = indent_task(str(root), "tasks.md", 1, "Parent")
+            self.assertEqual(indented["tasks"][1]["depth"], 1)
+            self.assertEqual(indented["tasks"][2]["depth"], 2)
+
+            outdented = outdent_task(str(root), "tasks.md", 1, "Parent")
+            self.assertEqual(outdented["tasks"][1]["depth"], 0)
+            self.assertEqual(outdented["tasks"][2]["depth"], 1)
+
+            deleted = delete_task(str(root), "tasks.md", 1, "Parent")
+            self.assertEqual(len(deleted["tasks"]), 1)
+            self.assertEqual(deleted["tasks"][0]["text"], "Sibling")
 
     def test_read_note_file_returns_tasks(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -181,6 +181,122 @@ async function saveSyncSettings(payload) {
     return data;
 }
 
+async function promptNoteText(title, prompt, initialValue = "") {
+    const base = getSyncBaseUrl();
+    const response = await syncRequest(`${base}/notes/prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, prompt, initialValue }),
+        timeoutMs: 120000
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function addNoteTask(path, text, afterLineIndex = null) {
+    const base = getSyncBaseUrl();
+    const payload = { path, text };
+    if (afterLineIndex !== null && afterLineIndex !== undefined) {
+        payload.afterLineIndex = afterLineIndex;
+    }
+    const response = await syncRequest(`${base}/notes/task/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function editNoteTask(path, lineIndex, text, expectedText = null) {
+    const base = getSyncBaseUrl();
+    const payload = { path, lineIndex, text };
+    if (expectedText !== null && expectedText !== undefined) {
+        payload.expectedText = expectedText;
+    }
+    const response = await syncRequest(`${base}/notes/task/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function addNoteSubtask(path, parentLineIndex, text, expectedText = null) {
+    const base = getSyncBaseUrl();
+    const payload = { path, parentLineIndex, text };
+    if (expectedText !== null && expectedText !== undefined) {
+        payload.expectedText = expectedText;
+    }
+    const response = await syncRequest(`${base}/notes/task/subtask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function noteTaskAction(path, lineIndex, action, expectedText = null) {
+    const base = getSyncBaseUrl();
+    const payload = { path, lineIndex, action };
+    if (expectedText !== null && expectedText !== undefined) {
+        payload.expectedText = expectedText;
+    }
+    const response = await syncRequest(`${base}/notes/task/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function openNoteFile(path) {
+    const base = getSyncBaseUrl();
+    const response = await syncRequest(`${base}/notes/open-file`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path })
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function pickNotesFolder(initialDir = "") {
+    const base = getSyncBaseUrl();
+    const response = await syncRequest(`${base}/notes/pick-folder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialDir }),
+        timeoutMs: 120000
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
 async function fetchNotesFiles() {
     const base = getSyncBaseUrl();
     const response = await syncRequest(`${base}/notes/files`, {

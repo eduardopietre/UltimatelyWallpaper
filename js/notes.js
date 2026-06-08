@@ -179,6 +179,55 @@ function renderNotesFileDropdown() {
     }
 }
 
+function getTaskActionState(task) {
+    const tasks = notesState.tasks;
+    const index = tasks.findIndex((item) => item.lineIndex === task.lineIndex);
+    if (index < 0) {
+        return { canMoveUp: false, canMoveDown: false, canIndent: false, canOutdent: false };
+    }
+
+    let canMoveUp = false;
+    for (let i = index - 1; i >= 0; i -= 1) {
+        if (tasks[i].depth === task.depth) {
+            canMoveUp = true;
+            break;
+        }
+        if (tasks[i].depth < task.depth) break;
+    }
+
+    let canMoveDown = false;
+    for (let i = index + 1; i < tasks.length; i += 1) {
+        if (tasks[i].depth === task.depth) {
+            canMoveDown = true;
+            break;
+        }
+        if (tasks[i].depth < task.depth) break;
+    }
+
+    return {
+        canMoveUp,
+        canMoveDown,
+        canIndent: index > 0,
+        canOutdent: (task.depth || 0) > 0
+    };
+}
+
+function createNotesActionButton(label, title, disabled, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "notes-task-action";
+    btn.textContent = label;
+    btn.title = title;
+    btn.setAttribute("aria-label", title);
+    btn.disabled = disabled;
+    btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!btn.disabled) onClick();
+    });
+    return btn;
+}
+
 function renderNotesTasks() {
     const content = document.getElementById("notes-content");
     if (!content) return;
@@ -209,16 +258,20 @@ function renderNotesTasks() {
         : notesState.tasks;
 
     if (!tasks.length) {
-        content.innerHTML = '<p class="empty-state">No visible tasks</p>';
+        content.innerHTML = '<p class="empty-state">No visible tasks. Use + Task to add one.</p>';
         return;
     }
 
     content.innerHTML = "";
     for (const task of tasks) {
-        const row = document.createElement("label");
+        const actionState = getTaskActionState(task);
+        const row = document.createElement("div");
         row.className = "notes-task";
         row.classList.toggle("completed", task.checked);
         row.style.setProperty("--task-depth", String(Math.min(task.depth || 0, 8)));
+
+        const main = document.createElement("div");
+        main.className = "notes-task-main";
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -227,12 +280,132 @@ function renderNotesTasks() {
             submitNoteTaskToggle(task.lineIndex, checkbox.checked, task.text || "");
         });
 
-        const text = document.createElement("span");
-        text.textContent = task.text || "";
+        const textBtn = document.createElement("button");
+        textBtn.type = "button";
+        textBtn.className = "notes-task-text";
+        textBtn.textContent = task.text || "(empty task)";
+        textBtn.title = "Edit task";
+        textBtn.addEventListener("click", () => {
+            editNoteTaskPrompt(task.lineIndex, task.text || "");
+        });
 
-        row.appendChild(checkbox);
-        row.appendChild(text);
+        main.appendChild(checkbox);
+        main.appendChild(textBtn);
+
+        const actions = document.createElement("div");
+        actions.className = "notes-task-actions";
+        actions.appendChild(createNotesActionButton("↑", "Move up", !actionState.canMoveUp, () => {
+            applyNoteTaskAction(task.lineIndex, "move_up", task.text || "");
+        }));
+        actions.appendChild(createNotesActionButton("↓", "Move down", !actionState.canMoveDown, () => {
+            applyNoteTaskAction(task.lineIndex, "move_down", task.text || "");
+        }));
+        actions.appendChild(createNotesActionButton("←", "Outdent", !actionState.canOutdent, () => {
+            applyNoteTaskAction(task.lineIndex, "outdent", task.text || "");
+        }));
+        actions.appendChild(createNotesActionButton("→", "Indent", !actionState.canIndent, () => {
+            applyNoteTaskAction(task.lineIndex, "indent", task.text || "");
+        }));
+        actions.appendChild(createNotesActionButton("+", "Add subtask", false, () => {
+            addSubtaskPrompt(task.lineIndex, task.text || "");
+        }));
+        actions.appendChild(createNotesActionButton("×", "Delete task", false, () => {
+            applyNoteTaskAction(task.lineIndex, "delete", task.text || "");
+        }));
+
+        row.appendChild(main);
+        row.appendChild(actions);
         content.appendChild(row);
+    }
+}
+
+async function promptForTaskText(title, prompt, initialValue = "") {
+    const data = await promptNoteText(title, prompt, initialValue);
+    if (data.cancelled) return null;
+    const value = (data.value || "").trim();
+    return value || null;
+}
+
+async function addNoteTaskPrompt() {
+    if (!notesState.selectedPath) {
+        setNotesError("Select a note file first");
+        return;
+    }
+    try {
+        const text = await promptForTaskText("New task", "Task description:");
+        if (!text) return;
+        const data = await addNoteTask(notesState.selectedPath, text);
+        notesState.tasks = data.tasks || [];
+        setNotesError("");
+        renderNotesTasks();
+    } catch (err) {
+        setNotesError(err.message || "Failed to add task");
+    }
+}
+
+async function editNoteTaskPrompt(lineIndex, currentText) {
+    if (!notesState.selectedPath) return;
+    try {
+        const text = await promptForTaskText("Edit task", "Task description:", currentText);
+        if (!text || text === currentText) return;
+        const data = await editNoteTask(notesState.selectedPath, lineIndex, text, currentText);
+        notesState.tasks = data.tasks || [];
+        setNotesError("");
+        renderNotesTasks();
+    } catch (err) {
+        setNotesError(err.message || "Failed to edit task");
+        await loadSelectedNoteFile();
+    }
+}
+
+async function addSubtaskPrompt(parentLineIndex, parentText) {
+    if (!notesState.selectedPath) return;
+    try {
+        const text = await promptForTaskText("New subtask", "Subtask description:");
+        if (!text) return;
+        const data = await addNoteSubtask(
+            notesState.selectedPath,
+            parentLineIndex,
+            text,
+            parentText
+        );
+        notesState.tasks = data.tasks || [];
+        setNotesError("");
+        renderNotesTasks();
+    } catch (err) {
+        setNotesError(err.message || "Failed to add subtask");
+        await loadSelectedNoteFile();
+    }
+}
+
+async function applyNoteTaskAction(lineIndex, action, expectedText) {
+    if (!notesState.selectedPath) return;
+    try {
+        const data = await noteTaskAction(
+            notesState.selectedPath,
+            lineIndex,
+            action,
+            expectedText
+        );
+        notesState.tasks = data.tasks || [];
+        setNotesError("");
+        renderNotesTasks();
+    } catch (err) {
+        setNotesError(err.message || "Failed to update task");
+        await loadSelectedNoteFile();
+    }
+}
+
+async function openSelectedNoteFile() {
+    if (!notesState.selectedPath) {
+        setNotesError("Select a note file first");
+        return;
+    }
+    try {
+        await openNoteFile(notesState.selectedPath);
+        setNotesError("");
+    } catch (err) {
+        setNotesError(err.message || "Failed to open note file");
     }
 }
 
@@ -370,7 +543,7 @@ function initNotesDrag() {
     }
 
     header.addEventListener("pointerdown", (e) => {
-        if (e.target.closest("button, input, label, .custom-select")) return;
+        if (e.target.closest("button, input, label, .custom-select, .notes-task-action, .notes-task-text")) return;
         const rect = card.getBoundingClientRect();
         notesState.dragging = true;
         notesState.dragStart = {
@@ -458,6 +631,16 @@ function initNotesWindow() {
     });
     document.getElementById("notes-hide-completed")?.addEventListener("change", (e) => {
         setNotesHideCompleted(e.target.checked);
+    });
+    document.getElementById("notes-add-task-btn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addNoteTaskPrompt();
+    });
+    document.getElementById("notes-open-file-btn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openSelectedNoteFile();
     });
 
     initNotesDropdown();

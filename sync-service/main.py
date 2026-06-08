@@ -17,12 +17,22 @@ from cache import EventCache
 from caldav_client import create_event, run_sync
 from event_builder import CreateEventRequest, build_vevent_ical
 from notes import (
+    add_subtask,
+    add_task,
+    delete_task,
     get_notes_config,
+    indent_task,
     list_markdown_files,
+    move_task,
     notes_enabled_from_value,
     normalize_notes_root,
+    open_note_file_externally,
+    outdent_task,
+    pick_notes_folder,
+    prompt_text,
     read_note_file,
     set_task_checked,
+    update_task_text,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -96,6 +106,47 @@ class ToggleNoteTaskRequest(BaseModel):
     lineIndex: int = Field(ge=0)
     checked: bool
     expectedText: str | None = None
+
+
+class PickNotesFolderRequest(BaseModel):
+    initialDir: str | None = None
+
+
+class PromptTextRequest(BaseModel):
+    title: str = Field(min_length=1)
+    prompt: str = Field(min_length=1)
+    initialValue: str = ""
+
+
+class AddNoteTaskRequest(BaseModel):
+    path: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    afterLineIndex: int | None = None
+
+
+class EditNoteTaskRequest(BaseModel):
+    path: str = Field(min_length=1)
+    lineIndex: int = Field(ge=0)
+    text: str = Field(min_length=1)
+    expectedText: str | None = None
+
+
+class AddSubtaskRequest(BaseModel):
+    path: str = Field(min_length=1)
+    parentLineIndex: int = Field(ge=0)
+    text: str = Field(min_length=1)
+    expectedText: str | None = None
+
+
+class NoteTaskActionRequest(BaseModel):
+    path: str = Field(min_length=1)
+    lineIndex: int = Field(ge=0)
+    action: str = Field(pattern="^(move_up|move_down|indent|outdent|delete)$")
+    expectedText: str | None = None
+
+
+class OpenNoteFileRequest(BaseModel):
+    path: str = Field(min_length=1)
 
 
 def get_sync_interval_minutes() -> int:
@@ -316,6 +367,166 @@ def events(
         "calendars": data.get("calendars", []),
         "events": filtered,
     }
+
+
+@app.post("/notes/pick-folder")
+def pick_notes_folder_endpoint(body: PickNotesFolderRequest | None = None):
+    initial_dir = None
+    if body and body.initialDir:
+        initial_dir = body.initialDir.strip()
+    if not initial_dir:
+        initial_dir = os.getenv("NOTES_FOLDER_PATH", "").strip() or None
+
+    try:
+        folder_path = pick_notes_folder(initial_dir)
+    except OSError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not folder_path:
+        return {"cancelled": True, "folderPath": ""}
+
+    try:
+        normalized = normalize_notes_root(folder_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {"cancelled": False, "folderPath": str(normalized)}
+
+
+@app.post("/notes/prompt")
+def prompt_text_endpoint(body: PromptTextRequest):
+    try:
+        value = prompt_text(body.title, body.prompt, body.initialValue)
+    except OSError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if value is None:
+        return {"cancelled": True, "value": ""}
+    return {"cancelled": False, "value": value}
+
+
+@app.post("/notes/task/add")
+def add_note_task(body: AddNoteTaskRequest):
+    config = get_notes_config()
+    if not config["enabled"]:
+        raise HTTPException(status_code=404, detail="Notes are disabled")
+    try:
+        return add_task(
+            config["folderPath"],
+            body.path,
+            body.text,
+            body.afterLineIndex,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/notes/task/edit")
+def edit_note_task(body: EditNoteTaskRequest):
+    config = get_notes_config()
+    if not config["enabled"]:
+        raise HTTPException(status_code=404, detail="Notes are disabled")
+    try:
+        return update_task_text(
+            config["folderPath"],
+            body.path,
+            body.lineIndex,
+            body.text,
+            body.expectedText,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/notes/task/subtask")
+def add_note_subtask(body: AddSubtaskRequest):
+    config = get_notes_config()
+    if not config["enabled"]:
+        raise HTTPException(status_code=404, detail="Notes are disabled")
+    try:
+        return add_subtask(
+            config["folderPath"],
+            body.path,
+            body.parentLineIndex,
+            body.text,
+            body.expectedText,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/notes/task/action")
+def note_task_action(body: NoteTaskActionRequest):
+    config = get_notes_config()
+    if not config["enabled"]:
+        raise HTTPException(status_code=404, detail="Notes are disabled")
+    try:
+        if body.action == "move_up":
+            return move_task(
+                config["folderPath"],
+                body.path,
+                body.lineIndex,
+                "up",
+                body.expectedText,
+            )
+        if body.action == "move_down":
+            return move_task(
+                config["folderPath"],
+                body.path,
+                body.lineIndex,
+                "down",
+                body.expectedText,
+            )
+        if body.action == "indent":
+            return indent_task(
+                config["folderPath"],
+                body.path,
+                body.lineIndex,
+                body.expectedText,
+            )
+        if body.action == "outdent":
+            return outdent_task(
+                config["folderPath"],
+                body.path,
+                body.lineIndex,
+                body.expectedText,
+            )
+        return delete_task(
+            config["folderPath"],
+            body.path,
+            body.lineIndex,
+            body.expectedText,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/notes/open-file")
+def open_note_file_endpoint(body: OpenNoteFileRequest):
+    config = get_notes_config()
+    if not config["enabled"]:
+        raise HTTPException(status_code=404, detail="Notes are disabled")
+    try:
+        open_note_file_externally(config["folderPath"], body.path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "ok"}
 
 
 @app.get("/notes/files")
