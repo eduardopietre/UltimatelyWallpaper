@@ -77,6 +77,45 @@ function initResize() {
 
     applyCardSizeForState(card.classList.contains("collapsed"));
 
+    function moveResize(e) {
+        if (!isResizingCard || !resizeStart) return;
+
+        const delta = Math.max(e.clientX - resizeStart.x, (e.clientY - resizeStart.y) * CARD_ASPECT_RATIO);
+        const nextSize = clampCardSize(resizeStart.width + delta);
+        applyCardSize(nextSize);
+        if (typeof ensureCardOnScreen === "function") {
+            ensureCardOnScreen();
+        }
+        e.preventDefault();
+    }
+
+    function endResize(e) {
+        if (!isResizingCard) return;
+        isResizingCard = false;
+        resizeStart = null;
+        card.classList.remove("resizing");
+
+        const rect = card.getBoundingClientRect();
+        saveCardSize(clampCardSize(rect.width));
+
+        if (typeof ensureCardOnScreen === "function") {
+            ensureCardOnScreen();
+        }
+
+        window.removeEventListener("pointermove", moveResize);
+        window.removeEventListener("pointerup", endResize);
+        window.removeEventListener("pointercancel", endResize);
+        window.removeEventListener("blur", endResize);
+
+        try {
+            if (e?.pointerId !== undefined && handle.hasPointerCapture(e.pointerId)) {
+                handle.releasePointerCapture(e.pointerId);
+            }
+        } catch {
+            /* CEF may drop capture before pointerup */
+        }
+    }
+
     handle.addEventListener("pointerdown", (e) => {
         if (card.classList.contains("collapsed")) return;
 
@@ -86,41 +125,28 @@ function initResize() {
             y: e.clientY,
             width: card.getBoundingClientRect().width
         };
-        handle.setPointerCapture(e.pointerId);
+        try {
+            handle.setPointerCapture(e.pointerId);
+        } catch {
+            /* Pointer capture is best-effort in Wallpaper Engine CEF */
+        }
         card.classList.add("resizing");
+        window.addEventListener("pointermove", moveResize);
+        window.addEventListener("pointerup", endResize);
+        window.addEventListener("pointercancel", endResize);
+        window.addEventListener("blur", endResize);
         e.preventDefault();
         e.stopPropagation();
     });
 
-    handle.addEventListener("pointermove", (e) => {
-        if (!isResizingCard || !resizeStart) return;
-
-        const delta = Math.max(e.clientX - resizeStart.x, (e.clientY - resizeStart.y) * CARD_ASPECT_RATIO);
-        const nextSize = clampCardSize(resizeStart.width + delta);
-        applyCardSize(nextSize);
-    });
-
-    const endResize = (e) => {
-        if (!isResizingCard) return;
-        isResizingCard = false;
-        resizeStart = null;
-        card.classList.remove("resizing");
-
-        const rect = card.getBoundingClientRect();
-        saveCardSize(clampCardSize(rect.width));
-
-        if (handle.hasPointerCapture(e.pointerId)) {
-            handle.releasePointerCapture(e.pointerId);
-        }
-    };
-
-    handle.addEventListener("pointerup", endResize);
-    handle.addEventListener("pointercancel", endResize);
     window.addEventListener("resize", () => {
         if (card.classList.contains("collapsed")) return;
         const size = savedCardSize || clampCardSize(card.getBoundingClientRect().width);
         const clamped = clampCardSize(size.width);
         saveCardSize(clamped);
         applyCardSize(clamped);
+        if (typeof scheduleEnsureCardOnScreen === "function") {
+            scheduleEnsureCardOnScreen();
+        }
     });
 }

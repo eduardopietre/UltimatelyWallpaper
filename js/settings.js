@@ -96,7 +96,7 @@ async function browseNotesFolder() {
     const current = document.getElementById("settings-notes-folder-path")?.value.trim() || "";
     if (browseBtn) browseBtn.disabled = true;
     try {
-        const data = await pickNotesFolder(current);
+        const data = await pickNotesFolder(current, "Notes folder");
         if (data.cancelled) return;
         setSettingsFieldValue("settings-notes-folder-path", data.folderPath || "");
         showSettingsError("");

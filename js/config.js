@@ -11,6 +11,7 @@ const AppConfig = {
     sizeKey: "calendarSize",
     notesCollapsedKey: "notesCollapsed",
     notesPositionKey: "notesPosition",
+    notesPositionLockKey: "notesPositionLocked",
     notesSizeKey: "notesSize",
     notesHideCompletedKey: "notesHideCompleted",
     notesSelectedFileKey: "notesSelectedFile",

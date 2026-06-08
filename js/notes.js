@@ -3,10 +3,12 @@ let notesState = {
     files: [],
     selectedPath: "",
     tasks: [],
+    selectedLineIndex: null,
     loading: false,
     error: "",
     collapsed: false,
     hideCompleted: false,
+    positionLocked: false,
     pollTimer: null,
     dragging: false,
     resizing: false,
@@ -35,6 +37,30 @@ function loadNotesPrefs() {
     notesState.collapsed = localStorage.getItem(AppConfig.notesCollapsedKey) === "1";
     notesState.hideCompleted = localStorage.getItem(AppConfig.notesHideCompletedKey) === "1";
     notesState.selectedPath = localStorage.getItem(AppConfig.notesSelectedFileKey) || "";
+    notesState.positionLocked = localStorage.getItem(AppConfig.notesPositionLockKey) === "1";
+}
+
+function saveNotesPositionLocked(locked) {
+    notesState.positionLocked = locked;
+    try {
+        localStorage.setItem(AppConfig.notesPositionLockKey, locked ? "1" : "0");
+    } catch {
+        /* ignore */
+    }
+}
+
+function updateNotesPositionLockUi() {
+    const card = document.getElementById("notes-card");
+    const btn = document.getElementById("notes-position-lock-btn");
+    if (card) {
+        card.classList.toggle("position-locked", notesState.positionLocked);
+    }
+    if (btn) {
+        btn.classList.toggle("locked", notesState.positionLocked);
+        const label = notesState.positionLocked ? "Unlock position" : "Lock position";
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+    }
 }
 
 function saveNotesSelectedPath(path) {
@@ -53,20 +79,149 @@ function applyNotesVisibility() {
     card.classList.toggle("collapsed", notesState.collapsed);
 }
 
+function loadNotesPosition() {
+    const pos = readJsonStorage(AppConfig.notesPositionKey);
+    if (!pos || typeof pos.xPct !== "number" || typeof pos.yPct !== "number") {
+        return null;
+    }
+    if (pos.anchor !== "topleft") {
+        pos.legacyCenter = true;
+    }
+    return pos;
+}
+
+function saveNotesPosition(xPct, yPct) {
+    writeJsonStorage(AppConfig.notesPositionKey, { xPct, yPct, anchor: "topleft" });
+}
+
+function notesPxToPct(x, y) {
+    return {
+        xPct: (x / window.innerWidth) * 100,
+        yPct: (y / window.innerHeight) * 100
+    };
+}
+
+function clampNotesTopLeft(x, y, width, height) {
+    const margin = 8;
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
+
+    let clampedX = x;
+    let clampedY = y;
+
+    if (width + margin * 2 <= viewW) {
+        clampedX = Math.min(viewW - width - margin, Math.max(margin, x));
+    } else {
+        clampedX = Math.max(margin, (viewW - width) / 2);
+    }
+
+    if (height + margin * 2 <= viewH) {
+        clampedY = Math.min(viewH - height - margin, Math.max(margin, y));
+    } else {
+        clampedY = Math.max(margin, (viewH - height) / 2);
+    }
+
+    return { x: clampedX, y: clampedY };
+}
+
+function migrateLegacyNotesPosition(card) {
+    const pos = loadNotesPosition();
+    if (!pos?.legacyCenter) return;
+
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const centerX = (pos.xPct / 100) * window.innerWidth;
+    const centerY = (pos.yPct / 100) * window.innerHeight;
+    const migrated = notesPxToPct(centerX - rect.width / 2, centerY - rect.height / 2);
+    saveNotesPosition(migrated.xPct, migrated.yPct);
+}
+
+function scheduleEnsureNotesOnScreen() {
+    window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+            ensureNotesOnScreen();
+        });
+    });
+}
+
+function ensureNotesOnScreen() {
+    const card = document.getElementById("notes-card");
+    if (!card || card.classList.contains("hidden")) return;
+
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const saved = loadNotesPosition();
+    if (!saved) {
+        const centered = clampNotesTopLeft(
+            (window.innerWidth - rect.width) / 2,
+            Math.max(8, window.innerHeight * 0.08),
+            rect.width,
+            rect.height
+        );
+        const pct = notesPxToPct(centered.x, centered.y);
+        card.classList.add("position-snap");
+        card.style.setProperty("--notes-x", `${pct.xPct}%`);
+        card.style.setProperty("--notes-y", `${pct.yPct}%`);
+        saveNotesPosition(pct.xPct, pct.yPct);
+        window.requestAnimationFrame(() => card.classList.remove("position-snap"));
+        return;
+    }
+
+    migrateLegacyNotesPosition(card);
+
+    const clamped = clampNotesTopLeft(rect.left, rect.top, rect.width, rect.height);
+    const pct = notesPxToPct(clamped.x, clamped.y);
+    const currentX = parseFloat(card.style.getPropertyValue("--notes-x")) || saved.xPct;
+    const currentY = parseFloat(card.style.getPropertyValue("--notes-y")) || saved.yPct;
+
+    if (Math.abs(currentX - pct.xPct) < 0.05 && Math.abs(currentY - pct.yPct) < 0.05) {
+        return;
+    }
+
+    const snap = !notesState.dragging && !notesState.resizing;
+    if (snap) {
+        card.classList.add("position-snap");
+    }
+    card.style.setProperty("--notes-x", `${pct.xPct}%`);
+    card.style.setProperty("--notes-y", `${pct.yPct}%`);
+    saveNotesPosition(pct.xPct, pct.yPct);
+    if (snap) {
+        window.requestAnimationFrame(() => card.classList.remove("position-snap"));
+    }
+}
+
 function applyNotesPosition() {
     const card = document.getElementById("notes-card");
     if (!card) return;
-    const pos = readJsonStorage(AppConfig.notesPositionKey) || { xPct: 78, yPct: 52 };
-    card.style.setProperty("--notes-x", `${pos.xPct}%`);
-    card.style.setProperty("--notes-y", `${pos.yPct}%`);
+    const pos = loadNotesPosition();
+    if (pos) {
+        card.style.setProperty("--notes-x", `${pos.xPct}%`);
+        card.style.setProperty("--notes-y", `${pos.yPct}%`);
+    } else {
+        card.style.removeProperty("--notes-x");
+        card.style.removeProperty("--notes-y");
+    }
+    scheduleEnsureNotesOnScreen();
 }
 
-function applyNotesSize() {
+function applyNotesSizeForState() {
     const card = document.getElementById("notes-card");
     if (!card) return;
+
+    if (notesState.collapsed) {
+        card.style.removeProperty("--notes-height");
+        return;
+    }
+
     const size = clampNotesSize(readJsonStorage(AppConfig.notesSizeKey) || { width: 420, height: 560 });
     card.style.setProperty("--notes-width", `${size.width}px`);
     card.style.setProperty("--notes-height", `${size.height}px`);
+}
+
+function applyNotesSize() {
+    applyNotesSizeForState();
 }
 
 function clampNotesSize(size) {
@@ -80,23 +235,11 @@ function clampNotesSize(size) {
     };
 }
 
-function clampNotesPosition(x, y, width, height) {
-    const margin = 8;
-    const halfW = width / 2;
-    const halfH = height / 2;
-    const minX = Math.min(window.innerWidth / 2, halfW + margin);
-    const maxX = Math.max(minX, window.innerWidth - halfW - margin);
-    const minY = Math.min(window.innerHeight / 2, halfH + margin);
-    const maxY = Math.max(minY, window.innerHeight - halfH - margin);
-    return {
-        x: Math.min(maxX, Math.max(minX, x)),
-        y: Math.min(maxY, Math.max(minY, y))
-    };
-}
-
 function setNotesCollapsed(collapsed, persist = true) {
     notesState.collapsed = collapsed;
     applyNotesVisibility();
+    applyNotesSizeForState();
+    scheduleEnsureNotesOnScreen();
     const btn = document.getElementById("notes-collapse-btn");
     if (btn) btn.textContent = collapsed ? "+" : "-";
     if (persist) {
@@ -169,6 +312,7 @@ function renderNotesFileDropdown() {
             e.preventDefault();
             e.stopPropagation();
             saveNotesSelectedPath(file.path);
+            clearNotesTaskSelection();
             list.classList.add("hidden");
             wrap.classList.remove("open");
             trigger.setAttribute("aria-expanded", "false");
@@ -177,6 +321,62 @@ function renderNotesFileDropdown() {
         });
         list.appendChild(btn);
     }
+}
+
+function getVisibleNotesTasks() {
+    if (notesState.hideCompleted) {
+        return notesState.tasks.filter((task) => !task.checked);
+    }
+    return notesState.tasks;
+}
+
+function getSelectedNotesTask() {
+    if (notesState.selectedLineIndex === null) return null;
+    return notesState.tasks.find((task) => task.lineIndex === notesState.selectedLineIndex) || null;
+}
+
+function selectNotesTask(lineIndex) {
+    notesState.selectedLineIndex = lineIndex;
+    updateNotesToolbar();
+    renderNotesTasks();
+}
+
+function clearNotesTaskSelection() {
+    notesState.selectedLineIndex = null;
+    updateNotesToolbar();
+}
+
+function updateNotesToolbar() {
+    const label = document.getElementById("notes-selection-label");
+    const task = getSelectedNotesTask();
+    const actionState = task ? getTaskActionState(task) : null;
+    const hasFile = Boolean(notesState.selectedPath);
+
+    if (label) {
+        if (!hasFile) {
+            label.textContent = "Select a note file";
+        } else if (!task) {
+            label.textContent = "Select a task below";
+        } else {
+            const preview = task.text || "(empty task)";
+            label.textContent = preview.length > 42 ? `${preview.slice(0, 42)}…` : preview;
+        }
+    }
+
+    const setDisabled = (id, disabled) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = disabled;
+    };
+
+    setDisabled("notes-tool-add", !hasFile);
+    setDisabled("notes-tool-open", !hasFile);
+    setDisabled("notes-tool-up", !task || !actionState?.canMoveUp);
+    setDisabled("notes-tool-down", !task || !actionState?.canMoveDown);
+    setDisabled("notes-tool-outdent", !task || !actionState?.canOutdent);
+    setDisabled("notes-tool-indent", !task || !actionState?.canIndent);
+    setDisabled("notes-tool-edit", !task);
+    setDisabled("notes-tool-subtask", !task);
+    setDisabled("notes-tool-delete", !task);
 }
 
 function getTaskActionState(task) {
@@ -212,25 +412,11 @@ function getTaskActionState(task) {
     };
 }
 
-function createNotesActionButton(label, title, disabled, onClick) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "notes-task-action";
-    btn.textContent = label;
-    btn.title = title;
-    btn.setAttribute("aria-label", title);
-    btn.disabled = disabled;
-    btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!btn.disabled) onClick();
-    });
-    return btn;
-}
-
 function renderNotesTasks() {
     const content = document.getElementById("notes-content");
     if (!content) return;
+
+    updateNotesToolbar();
 
     if (!notesState.enabled) {
         content.innerHTML = '<p class="empty-state">Notes are disabled</p>';
@@ -253,68 +439,44 @@ function renderNotesTasks() {
         return;
     }
 
-    const tasks = notesState.hideCompleted
-        ? notesState.tasks.filter((task) => !task.checked)
-        : notesState.tasks;
-
+    const tasks = getVisibleNotesTasks();
     if (!tasks.length) {
-        content.innerHTML = '<p class="empty-state">No visible tasks. Use + Task to add one.</p>';
+        content.innerHTML = '<p class="empty-state">No visible tasks. Use + Task above.</p>';
         return;
+    }
+
+    if (
+        notesState.selectedLineIndex !== null
+        && !tasks.some((task) => task.lineIndex === notesState.selectedLineIndex)
+    ) {
+        clearNotesTaskSelection();
     }
 
     content.innerHTML = "";
     for (const task of tasks) {
-        const actionState = getTaskActionState(task);
         const row = document.createElement("div");
         row.className = "notes-task";
         row.classList.toggle("completed", task.checked);
+        row.classList.toggle("selected", task.lineIndex === notesState.selectedLineIndex);
         row.style.setProperty("--task-depth", String(Math.min(task.depth || 0, 8)));
-
-        const main = document.createElement("div");
-        main.className = "notes-task-main";
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = task.checked;
+        checkbox.addEventListener("click", (e) => e.stopPropagation());
         checkbox.addEventListener("change", () => {
             submitNoteTaskToggle(task.lineIndex, checkbox.checked, task.text || "");
         });
 
-        const textBtn = document.createElement("button");
-        textBtn.type = "button";
-        textBtn.className = "notes-task-text";
-        textBtn.textContent = task.text || "(empty task)";
-        textBtn.title = "Edit task";
-        textBtn.addEventListener("click", () => {
-            editNoteTaskPrompt(task.lineIndex, task.text || "");
+        const text = document.createElement("span");
+        text.className = "notes-task-text";
+        text.textContent = task.text || "(empty task)";
+
+        row.appendChild(checkbox);
+        row.appendChild(text);
+        row.addEventListener("click", () => {
+            selectNotesTask(task.lineIndex);
         });
-
-        main.appendChild(checkbox);
-        main.appendChild(textBtn);
-
-        const actions = document.createElement("div");
-        actions.className = "notes-task-actions";
-        actions.appendChild(createNotesActionButton("↑", "Move up", !actionState.canMoveUp, () => {
-            applyNoteTaskAction(task.lineIndex, "move_up", task.text || "");
-        }));
-        actions.appendChild(createNotesActionButton("↓", "Move down", !actionState.canMoveDown, () => {
-            applyNoteTaskAction(task.lineIndex, "move_down", task.text || "");
-        }));
-        actions.appendChild(createNotesActionButton("←", "Outdent", !actionState.canOutdent, () => {
-            applyNoteTaskAction(task.lineIndex, "outdent", task.text || "");
-        }));
-        actions.appendChild(createNotesActionButton("→", "Indent", !actionState.canIndent, () => {
-            applyNoteTaskAction(task.lineIndex, "indent", task.text || "");
-        }));
-        actions.appendChild(createNotesActionButton("+", "Add subtask", false, () => {
-            addSubtaskPrompt(task.lineIndex, task.text || "");
-        }));
-        actions.appendChild(createNotesActionButton("×", "Delete task", false, () => {
-            applyNoteTaskAction(task.lineIndex, "delete", task.text || "");
-        }));
-
-        row.appendChild(main);
-        row.appendChild(actions);
         content.appendChild(row);
     }
 }
@@ -331,11 +493,17 @@ async function addNoteTaskPrompt() {
         setNotesError("Select a note file first");
         return;
     }
+    const fileLabel = notesState.selectedPath.split("/").pop() || "note";
     try {
-        const text = await promptForTaskText("New task", "Task description:");
+        const text = await promptForTaskText(
+            "New task",
+            `Add a task to ${fileLabel}:`,
+        );
         if (!text) return;
         const data = await addNoteTask(notesState.selectedPath, text);
         notesState.tasks = data.tasks || [];
+        const created = notesState.tasks[notesState.tasks.length - 1];
+        if (created) notesState.selectedLineIndex = created.lineIndex;
         setNotesError("");
         renderNotesTasks();
     } catch (err) {
@@ -343,13 +511,25 @@ async function addNoteTaskPrompt() {
     }
 }
 
-async function editNoteTaskPrompt(lineIndex, currentText) {
-    if (!notesState.selectedPath) return;
+async function editSelectedNoteTaskPrompt() {
+    const task = getSelectedNotesTask();
+    if (!task || !notesState.selectedPath) return;
+    const fileLabel = notesState.selectedPath.split("/").pop() || "note";
     try {
-        const text = await promptForTaskText("Edit task", "Task description:", currentText);
-        if (!text || text === currentText) return;
-        const data = await editNoteTask(notesState.selectedPath, lineIndex, text, currentText);
+        const text = await promptForTaskText(
+            "Edit task",
+            `Update this task in ${fileLabel}:`,
+            task.text || "",
+        );
+        if (!text || text === task.text) return;
+        const data = await editNoteTask(
+            notesState.selectedPath,
+            task.lineIndex,
+            text,
+            task.text || "",
+        );
         notesState.tasks = data.tasks || [];
+        notesState.selectedLineIndex = task.lineIndex;
         setNotesError("");
         renderNotesTasks();
     } catch (err) {
@@ -358,24 +538,55 @@ async function editNoteTaskPrompt(lineIndex, currentText) {
     }
 }
 
+async function editNoteTaskPrompt(lineIndex, currentText) {
+    selectNotesTask(lineIndex);
+    await editSelectedNoteTaskPrompt();
+}
+
 async function addSubtaskPrompt(parentLineIndex, parentText) {
     if (!notesState.selectedPath) return;
+    const parentLabel = parentText || "selected task";
     try {
-        const text = await promptForTaskText("New subtask", "Subtask description:");
+        const text = await promptForTaskText(
+            "New subtask",
+            `Add a subtask under "${parentLabel}":`,
+        );
         if (!text) return;
         const data = await addNoteSubtask(
             notesState.selectedPath,
             parentLineIndex,
             text,
-            parentText
+            parentText,
         );
         notesState.tasks = data.tasks || [];
+        const created = data.tasks.find(
+            (task, index, list) =>
+                index > 0
+                && list[index - 1].lineIndex === parentLineIndex
+                && task.text === text,
+        );
+        if (created) notesState.selectedLineIndex = created.lineIndex;
         setNotesError("");
         renderNotesTasks();
     } catch (err) {
         setNotesError(err.message || "Failed to add subtask");
         await loadSelectedNoteFile();
     }
+}
+
+async function addSelectedSubtaskPrompt() {
+    const task = getSelectedNotesTask();
+    if (!task) return;
+    await addSubtaskPrompt(task.lineIndex, task.text || "");
+}
+
+async function applySelectedNoteTaskAction(action) {
+    const task = getSelectedNotesTask();
+    if (!task) return;
+    if (action === "delete") {
+        clearNotesTaskSelection();
+    }
+    await applyNoteTaskAction(task.lineIndex, action, task.text || "");
 }
 
 async function applyNoteTaskAction(lineIndex, action, expectedText) {
@@ -388,6 +599,24 @@ async function applyNoteTaskAction(lineIndex, action, expectedText) {
             expectedText
         );
         notesState.tasks = data.tasks || [];
+        if (action !== "delete" && expectedText) {
+            const matches = notesState.tasks.filter((task) => task.text === expectedText);
+            if (matches.length === 1) {
+                notesState.selectedLineIndex = matches[0].lineIndex;
+            } else if (matches.length > 1) {
+                const closest = matches.reduce((best, task) =>
+                    Math.abs(task.lineIndex - lineIndex) < Math.abs(best.lineIndex - lineIndex)
+                        ? task
+                        : best
+                );
+                notesState.selectedLineIndex = closest.lineIndex;
+            }
+        } else if (
+            notesState.selectedLineIndex !== null
+            && !notesState.tasks.some((task) => task.lineIndex === notesState.selectedLineIndex)
+        ) {
+            clearNotesTaskSelection();
+        }
         setNotesError("");
         renderNotesTasks();
     } catch (err) {
@@ -423,6 +652,7 @@ async function loadNotesFiles({ keepError = false } = {}) {
 async function loadSelectedNoteFile() {
     if (!notesState.enabled || !notesState.selectedPath) {
         notesState.tasks = [];
+        clearNotesTaskSelection();
         renderNotesTasks();
         return;
     }
@@ -430,12 +660,20 @@ async function loadSelectedNoteFile() {
     try {
         const data = await fetchNoteFile(notesState.selectedPath);
         notesState.tasks = data.tasks || [];
+        if (
+            notesState.selectedLineIndex !== null
+            && !notesState.tasks.some((task) => task.lineIndex === notesState.selectedLineIndex)
+        ) {
+            clearNotesTaskSelection();
+        }
         setNotesError("");
     } catch (err) {
         notesState.tasks = [];
+        clearNotesTaskSelection();
         setNotesError(err.message || "Failed to load note");
     } finally {
         setNotesLoading(false);
+        renderNotesTasks();
     }
 }
 
@@ -512,18 +750,17 @@ function initNotesDrag() {
 
     function moveDrag(e) {
         if (!notesState.dragging || !notesState.dragStart) return;
-        const nextX = notesState.dragStart.centerX + e.clientX - notesState.dragStart.pointerX;
-        const nextY = notesState.dragStart.centerY + e.clientY - notesState.dragStart.pointerY;
-        const clamped = clampNotesPosition(
+        const nextX = notesState.dragStart.anchorX + e.clientX - notesState.dragStart.pointerX;
+        const nextY = notesState.dragStart.anchorY + e.clientY - notesState.dragStart.pointerY;
+        const clamped = clampNotesTopLeft(
             nextX,
             nextY,
             notesState.dragStart.width,
             notesState.dragStart.height
         );
-        const xPct = (clamped.x / window.innerWidth) * 100;
-        const yPct = (clamped.y / window.innerHeight) * 100;
-        card.style.setProperty("--notes-x", `${xPct}%`);
-        card.style.setProperty("--notes-y", `${yPct}%`);
+        const pct = notesPxToPct(clamped.x, clamped.y);
+        card.style.setProperty("--notes-x", `${pct.xPct}%`);
+        card.style.setProperty("--notes-y", `${pct.yPct}%`);
         e.preventDefault();
     }
 
@@ -533,9 +770,9 @@ function initNotesDrag() {
         notesState.dragStart = null;
         card.classList.remove("dragging");
         header.classList.remove("dragging");
-        const xPct = parseFloat(card.style.getPropertyValue("--notes-x")) || 78;
-        const yPct = parseFloat(card.style.getPropertyValue("--notes-y")) || 52;
-        writeJsonStorage(AppConfig.notesPositionKey, { xPct, yPct });
+        const xPct = parseFloat(card.style.getPropertyValue("--notes-x")) || 72;
+        const yPct = parseFloat(card.style.getPropertyValue("--notes-y")) || 8;
+        saveNotesPosition(xPct, yPct);
         window.removeEventListener("pointermove", moveDrag);
         window.removeEventListener("pointerup", endDrag);
         window.removeEventListener("pointercancel", endDrag);
@@ -543,14 +780,15 @@ function initNotesDrag() {
     }
 
     header.addEventListener("pointerdown", (e) => {
-        if (e.target.closest("button, input, label, .custom-select, .notes-task-action, .notes-task-text")) return;
+        if (notesState.positionLocked) return;
+        if (e.target.closest("button, input, label, .custom-select, .notes-toolbar, .notes-task")) return;
         const rect = card.getBoundingClientRect();
         notesState.dragging = true;
         notesState.dragStart = {
             pointerX: e.clientX,
             pointerY: e.clientY,
-            centerX: rect.left + rect.width / 2,
-            centerY: rect.top + rect.height / 2,
+            anchorX: rect.left,
+            anchorY: rect.top,
             width: rect.width,
             height: rect.height
         };
@@ -577,6 +815,9 @@ function initNotesResize() {
         });
         card.style.setProperty("--notes-width", `${size.width}px`);
         card.style.setProperty("--notes-height", `${size.height}px`);
+        if (!notesState.collapsed) {
+            ensureNotesOnScreen();
+        }
     }
 
     function endResize() {
@@ -588,6 +829,7 @@ function initNotesResize() {
             width: card.getBoundingClientRect().width,
             height: card.getBoundingClientRect().height
         });
+        ensureNotesOnScreen();
         window.removeEventListener("pointermove", moveResize);
         window.removeEventListener("pointerup", endResize);
         window.removeEventListener("pointercancel", endResize);
@@ -614,16 +856,75 @@ function initNotesResize() {
     });
 
     window.addEventListener("resize", () => {
-        applyNotesPosition();
-        applyNotesSize();
+        applyNotesSizeForState();
+        scheduleEnsureNotesOnScreen();
     });
+}
+
+function initNotesPositionLock() {
+    const btn = document.getElementById("notes-position-lock-btn");
+    if (!btn) return;
+
+    updateNotesPositionLockUi();
+    btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (notesState.dragging) {
+            notesState.dragging = false;
+            notesState.dragStart = null;
+            document.getElementById("notes-card")?.classList.remove("dragging");
+            document.getElementById("notes-header")?.classList.remove("dragging");
+        }
+        saveNotesPositionLocked(!notesState.positionLocked);
+        updateNotesPositionLockUi();
+    });
+}
+
+function initNotesScroll() {
+    const body = document.getElementById("notes-body");
+    const content = document.getElementById("notes-content");
+    if (!body || !content) return;
+
+    function handleWheel(e) {
+        if (notesState.collapsed || !notesState.enabled) return;
+
+        const maxScroll = content.scrollHeight - content.clientHeight;
+        if (maxScroll <= 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        content.scrollTop = Math.max(0, Math.min(maxScroll, content.scrollTop + e.deltaY));
+    }
+
+    body.addEventListener("wheel", handleWheel, { passive: false });
+    content.addEventListener("wheel", handleWheel, { passive: false });
+}
+
+function initNotesToolbar() {
+    const bind = (id, handler) => {
+        document.getElementById(id)?.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handler();
+        });
+    };
+
+    bind("notes-tool-add", addNoteTaskPrompt);
+    bind("notes-tool-open", openSelectedNoteFile);
+    bind("notes-tool-up", () => applySelectedNoteTaskAction("move_up"));
+    bind("notes-tool-down", () => applySelectedNoteTaskAction("move_down"));
+    bind("notes-tool-outdent", () => applySelectedNoteTaskAction("outdent"));
+    bind("notes-tool-indent", () => applySelectedNoteTaskAction("indent"));
+    bind("notes-tool-edit", editSelectedNoteTaskPrompt);
+    bind("notes-tool-subtask", addSelectedSubtaskPrompt);
+    bind("notes-tool-delete", () => applySelectedNoteTaskAction("delete"));
+    updateNotesToolbar();
 }
 
 function initNotesWindow() {
     loadNotesPrefs();
-    applyNotesPosition();
-    applyNotesSize();
     setNotesCollapsed(notesState.collapsed, false);
+    applyNotesPosition();
     setNotesHideCompleted(notesState.hideCompleted, false);
 
     document.getElementById("notes-collapse-btn")?.addEventListener("click", () => {
@@ -632,17 +933,10 @@ function initNotesWindow() {
     document.getElementById("notes-hide-completed")?.addEventListener("change", (e) => {
         setNotesHideCompleted(e.target.checked);
     });
-    document.getElementById("notes-add-task-btn")?.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        addNoteTaskPrompt();
-    });
-    document.getElementById("notes-open-file-btn")?.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openSelectedNoteFile();
-    });
 
+    initNotesToolbar();
+    initNotesPositionLock();
+    initNotesScroll();
     initNotesDropdown();
     initNotesDrag();
     initNotesResize();

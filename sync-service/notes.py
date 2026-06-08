@@ -8,7 +8,103 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
+APP_TITLE = "iCloud Calendar Sync"
+CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 TASK_RE = re.compile(r"^([ \t]*)-\s+\[([ xX])\]\s?(.*)$")
+
+CENTER_ON_SCREEN = """
+def center_on_screen(window):
+    window.update_idletasks()
+    width = window.winfo_width() or window.winfo_reqwidth()
+    height = window.winfo_height() or window.winfo_reqheight()
+    x = (window.winfo_screenwidth() - width) // 2
+    y = (window.winfo_screenheight() - height) // 2
+    window.geometry(f"+{x}+{y}")
+"""
+
+FOLDER_DIALOG_SCRIPT = (
+    CENTER_ON_SCREEN
+    + """
+import json, sys, tkinter as tk
+from tkinter import filedialog
+
+data = json.loads(sys.argv[1])
+root = tk.Tk()
+root.withdraw()
+root.update_idletasks()
+cx = root.winfo_screenwidth() // 2
+cy = root.winfo_screenheight() // 2
+root.overrideredirect(True)
+root.geometry(f"1x1+{cx}+{cy}")
+try:
+    root.attributes("-alpha", 0.0)
+except tk.TclError:
+    pass
+root.deiconify()
+root.update()
+root.attributes("-topmost", True)
+path = filedialog.askdirectory(
+    parent=root,
+    initialdir=data.get("initial", ""),
+    title=data.get("title", "Select folder"),
+    mustexist=True,
+)
+print(json.dumps(path or ""))
+root.destroy()
+"""
+)
+
+TEXT_DIALOG_SCRIPT = (
+    CENTER_ON_SCREEN
+    + """
+import json, sys, tkinter as tk
+from tkinter import ttk
+
+data = json.loads(sys.argv[1])
+root = tk.Tk()
+root.withdraw()
+root.attributes("-topmost", True)
+
+result = {"value": ""}
+dialog = tk.Toplevel(root)
+dialog.title(data.get("title", "Input"))
+dialog.attributes("-topmost", True)
+dialog.resizable(False, False)
+dialog.transient(root)
+dialog.grab_set()
+
+frame = ttk.Frame(dialog, padding=14)
+frame.pack(fill="both", expand=True)
+
+ttk.Label(frame, text=data.get("prompt", ""), wraplength=360).pack(anchor="w")
+entry_var = tk.StringVar(value=data.get("initial", ""))
+entry = ttk.Entry(frame, textvariable=entry_var, width=46)
+entry.pack(fill="x", pady=(10, 14))
+entry.focus_set()
+entry.select_range(0, tk.END)
+
+buttons = ttk.Frame(frame)
+buttons.pack(fill="x")
+
+def submit(_event=None):
+    result["value"] = entry_var.get()
+    dialog.destroy()
+
+def cancel(_event=None):
+    result["value"] = ""
+    dialog.destroy()
+
+ttk.Button(buttons, text="Save", command=submit).pack(side="right")
+ttk.Button(buttons, text="Cancel", command=cancel).pack(side="right", padx=(0, 8))
+dialog.protocol("WM_DELETE_WINDOW", cancel)
+dialog.bind("<Return>", submit)
+dialog.bind("<Escape>", cancel)
+center_on_screen(dialog)
+dialog.wait_window()
+print(json.dumps(result["value"]))
+root.destroy()
+"""
+)
 
 
 @dataclass
@@ -37,13 +133,34 @@ def normalize_notes_root(folder_path: str) -> Path:
     return root
 
 
-def _picker_python() -> Path:
+def _dialog_python() -> Path:
     exe = Path(sys.executable)
-    if sys.platform == "win32" and exe.name.lower() == "pythonw.exe":
-        candidate = exe.with_name("python.exe")
-        if candidate.exists():
-            return candidate
+    if sys.platform == "win32":
+        if exe.name.lower() == "pythonw.exe":
+            return exe
+        pythonw = exe.with_name("pythonw.exe")
+        if pythonw.exists():
+            return pythonw
     return exe
+
+
+def _dialog_title(title: str) -> str:
+    clean = title.strip()
+    if clean.startswith(APP_TITLE):
+        return clean
+    return f"{APP_TITLE} — {clean}"
+
+
+def _run_dialog_command(script: str, payload: str) -> subprocess.CompletedProcess[str]:
+    kwargs: dict = {
+        "capture_output": True,
+        "text": True,
+        "timeout": 300,
+        "check": False,
+    }
+    if sys.platform == "win32":
+        kwargs["creationflags"] = CREATE_NO_WINDOW
+    return subprocess.run([str(_dialog_python()), "-c", script, payload], **kwargs)
 
 
 def _resolve_initial_dir(initial_dir: str | None) -> str:
@@ -56,29 +173,17 @@ def _resolve_initial_dir(initial_dir: str | None) -> str:
     return str(Path.home())
 
 
-def pick_notes_folder(initial_dir: str | None = None) -> str | None:
+def pick_notes_folder(initial_dir: str | None = None, title: str | None = None) -> str | None:
     if sys.platform != "win32":
         raise OSError("Folder picker is only supported on Windows")
 
-    initial = _resolve_initial_dir(initial_dir)
-    script = (
-        "import json, os, sys, tkinter as tk\n"
-        "from tkinter import filedialog\n"
-        "root = tk.Tk()\n"
-        "root.withdraw()\n"
-        "root.attributes('-topmost', True)\n"
-        "initial = sys.argv[1]\n"
-        "path = filedialog.askdirectory(initialdir=initial, title='Select notes folder')\n"
-        "print(json.dumps(path or ''))\n"
-        "root.destroy()\n"
+    payload = json.dumps(
+        {
+            "initial": _resolve_initial_dir(initial_dir),
+            "title": _dialog_title(title or "Select notes folder"),
+        }
     )
-    result = subprocess.run(
-        [str(_picker_python()), "-c", script, initial],
-        capture_output=True,
-        text=True,
-        timeout=300,
-        check=False,
-    )
+    result = _run_dialog_command(FOLDER_DIALOG_SCRIPT, payload)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Folder picker failed").strip()
         raise RuntimeError(detail)
@@ -90,30 +195,14 @@ def prompt_text(title: str, prompt: str, initial: str = "") -> str | None:
     if sys.platform != "win32":
         raise OSError("Text prompt is only supported on Windows")
 
-    payload = json.dumps({"title": title, "prompt": prompt, "initial": initial})
-    script = (
-        "import json, sys, tkinter as tk\n"
-        "from tkinter import simpledialog\n"
-        "data = json.loads(sys.argv[1])\n"
-        "root = tk.Tk()\n"
-        "root.withdraw()\n"
-        "root.attributes('-topmost', True)\n"
-        "value = simpledialog.askstring(\n"
-        "    data['title'],\n"
-        "    data['prompt'],\n"
-        "    initialvalue=data.get('initial', ''),\n"
-        "    parent=root,\n"
-        ")\n"
-        "print(json.dumps(value or ''))\n"
-        "root.destroy()\n"
+    payload = json.dumps(
+        {
+            "title": _dialog_title(title),
+            "prompt": prompt,
+            "initial": initial,
+        }
     )
-    result = subprocess.run(
-        [str(_picker_python()), "-c", script, payload],
-        capture_output=True,
-        text=True,
-        timeout=300,
-        check=False,
-    )
+    result = _run_dialog_command(TEXT_DIALOG_SCRIPT, payload)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Text prompt failed").strip()
         raise RuntimeError(detail)

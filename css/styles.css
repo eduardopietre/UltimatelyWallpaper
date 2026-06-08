@@ -23,9 +23,8 @@ html, body {
 
 .calendar-card {
     position: fixed;
-    top: var(--card-y, 50%);
-    left: var(--card-x, 50%);
-    transform: translate(-50%, -50%);
+    top: var(--card-y, 8%);
+    left: var(--card-x, 8%);
     width: min(var(--card-width, 920px), 92vw);
     height: var(--card-height, auto);
     max-height: 88vh;
@@ -36,14 +35,14 @@ html, body {
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
     overflow: hidden;
     z-index: 5;
-    transition: top 0.35s ease, left 0.35s ease, transform 0.35s ease,
+    transition: top 0.35s ease, left 0.35s ease,
         max-height 0.35s ease, width 0.35s ease, height 0.35s ease;
 }
 
 .calendar-card.centered {
-    top: 50%;
+    top: 8%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
 }
 
 .calendar-card.dragging {
@@ -52,6 +51,10 @@ html, body {
 
 .calendar-card.resizing {
     transition: none;
+}
+
+.calendar-card.position-snap {
+    transition: none !important;
 }
 
 .calendar-card.collapsed {
@@ -81,17 +84,17 @@ html, body {
     flex-shrink: 0;
 }
 
-.calendar-card.collapsed .calendar-header {
+.calendar-card:not(.position-locked) .calendar-header {
     cursor: grab;
     touch-action: none;
 }
 
-.calendar-card.collapsed .calendar-header.dragging {
+.calendar-card:not(.position-locked) .calendar-header.dragging {
     cursor: grabbing;
     user-select: none;
 }
 
-.calendar-card.collapsed.position-locked .calendar-header {
+.calendar-card.position-locked .calendar-header {
     cursor: default;
 }
 
@@ -142,7 +145,9 @@ html, body {
 }
 
 .position-lock-btn {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
     width: 28px;
     height: 28px;
@@ -152,10 +157,6 @@ html, body {
     color: #fff;
     cursor: pointer;
     flex-shrink: 0;
-}
-
-.calendar-card.collapsed .position-lock-btn {
-    display: inline-flex;
 }
 
 .position-lock-btn:hover {
@@ -542,13 +543,14 @@ html, body {
 
 .calendar-resize-handle {
     position: absolute;
-    right: 6px;
-    bottom: 6px;
-    width: 18px;
-    height: 18px;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    height: 28px;
     cursor: nwse-resize;
     opacity: 0.55;
     z-index: 6;
+    touch-action: none;
 }
 
 .calendar-resize-handle::before,
@@ -582,9 +584,8 @@ html, body {
 
 .notes-card {
     position: fixed;
-    top: var(--notes-y, 52%);
-    left: var(--notes-x, 78%);
-    transform: translate(-50%, -50%);
+    top: var(--notes-y, 8%);
+    left: var(--notes-x, 72%);
     width: min(var(--notes-width, 420px), 92vw);
     height: min(var(--notes-height, 560px), 88vh);
     display: flex;
@@ -595,11 +596,12 @@ html, body {
     box-shadow: 0 20px 56px rgba(0, 0, 0, 0.48);
     overflow: hidden;
     z-index: 6;
-    transition: width 0.25s ease, height 0.25s ease, opacity 0.25s ease;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease, opacity 0.25s ease;
 }
 
 .notes-card.dragging,
-.notes-card.resizing {
+.notes-card.resizing,
+.notes-card.position-snap {
     transition: none;
 }
 
@@ -620,6 +622,9 @@ html, body {
     gap: 12px;
     padding: 12px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.notes-card:not(.position-locked) .notes-header {
     cursor: grab;
     touch-action: none;
 }
@@ -627,6 +632,10 @@ html, body {
 .notes-header.dragging {
     cursor: grabbing;
     user-select: none;
+}
+
+.notes-card.position-locked .notes-header {
+    cursor: default;
 }
 
 .notes-header-right {
@@ -678,6 +687,7 @@ html, body {
     min-height: 0;
     flex: 1;
     padding: 14px;
+    overflow: hidden;
 }
 
 .notes-file-dropdown {
@@ -688,34 +698,93 @@ html, body {
     max-height: 220px;
 }
 
+.notes-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    flex-shrink: 0;
+}
+
+.notes-selection-label {
+    font-size: 0.76rem;
+    opacity: 0.72;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notes-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.notes-toolbar-sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 0 2px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.notes-tool-btn {
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 0.74rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.notes-tool-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.notes-tool-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.notes-tool-btn-danger:hover:not(:disabled) {
+    background: rgba(240, 82, 82, 0.22);
+    border-color: rgba(240, 82, 82, 0.45);
+}
+
 .notes-content {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-right: 2px;
 }
 
 .notes-task {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: flex-start;
+    gap: 8px;
     min-height: 30px;
     padding: 6px 8px 6px calc(8px + (var(--task-depth, 0) * 18px));
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.035);
+    border: 1px solid transparent;
+    cursor: pointer;
 }
 
 .notes-task:hover {
     background: rgba(255, 255, 255, 0.07);
 }
 
-.notes-task-main {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    min-width: 0;
+.notes-task.selected {
+    background: rgba(58, 88, 142, 0.28);
+    border-color: rgba(58, 88, 142, 0.55);
 }
 
 .notes-task input {
@@ -730,54 +799,13 @@ html, body {
     flex: 1;
     min-width: 0;
     overflow-wrap: anywhere;
-    border: none;
-    background: transparent;
-    color: inherit;
-    font: inherit;
     font-size: 0.86rem;
     line-height: 1.35;
-    text-align: left;
-    padding: 0;
-    cursor: pointer;
-}
-
-.notes-task-text:hover {
-    color: #fff;
-    text-decoration: underline;
 }
 
 .notes-task.completed .notes-task-text {
     opacity: 0.52;
     text-decoration: line-through;
-}
-
-.notes-task-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding-left: 24px;
-}
-
-.notes-task-action {
-    min-width: 24px;
-    height: 22px;
-    padding: 0 6px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
-    font-size: 0.72rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.notes-task-action:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.notes-task-action:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
 }
 
 .notes-error {

@@ -9,7 +9,7 @@
 <body>
     <div id="wallpaper-bg" class="wallpaper-bg"></div>
 
-    <div id="calendar-card" class="calendar-card centered">
+    <div id="calendar-card" class="calendar-card">
         <header class="calendar-header">
             <div class="calendar-header-left">
                 <button id="collapse-btn" class="collapse-btn" type="button" aria-label="Toggle calendar">−</button>
@@ -63,12 +63,11 @@
                 <h2 class="notes-title">Notes</h2>
             </div>
             <div class="notes-header-right">
-                <button id="notes-add-task-btn" class="header-action-btn" type="button">+ Task</button>
-                <button id="notes-open-file-btn" class="header-action-btn" type="button">Open file</button>
                 <label class="notes-toggle">
                     <input id="notes-hide-completed" type="checkbox">
                     <span>Hide completed</span>
                 </label>
+                <button id="notes-position-lock-btn" class="position-lock-btn" type="button" aria-label="Lock position" title="Lock position"></button>
             </div>
         </header>
         <div id="notes-body" class="notes-body">
@@ -77,6 +76,21 @@
                 <div class="custom-select-control">
                     <button id="notes-file-trigger" class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">No notes</button>
                     <div id="notes-file-list" class="custom-select-list hidden" role="listbox"></div>
+                </div>
+            </div>
+            <div id="notes-toolbar" class="notes-toolbar">
+                <span id="notes-selection-label" class="notes-selection-label">No task selected</span>
+                <div class="notes-toolbar-actions">
+                    <button type="button" id="notes-tool-add" class="notes-tool-btn">+ Task</button>
+                    <button type="button" id="notes-tool-open" class="notes-tool-btn">Open file</button>
+                    <span class="notes-toolbar-sep" aria-hidden="true"></span>
+                    <button type="button" id="notes-tool-up" class="notes-tool-btn" disabled>Up</button>
+                    <button type="button" id="notes-tool-down" class="notes-tool-btn" disabled>Down</button>
+                    <button type="button" id="notes-tool-outdent" class="notes-tool-btn" disabled>Outdent</button>
+                    <button type="button" id="notes-tool-indent" class="notes-tool-btn" disabled>Indent</button>
+                    <button type="button" id="notes-tool-edit" class="notes-tool-btn" disabled>Edit</button>
+                    <button type="button" id="notes-tool-subtask" class="notes-tool-btn" disabled>Subtask</button>
+                    <button type="button" id="notes-tool-delete" class="notes-tool-btn notes-tool-btn-danger" disabled>Delete</button>
                 </div>
             </div>
             <div id="notes-content" class="notes-content"></div>

@@ -110,6 +110,7 @@ class ToggleNoteTaskRequest(BaseModel):
 
 class PickNotesFolderRequest(BaseModel):
     initialDir: str | None = None
+    title: str | None = None
 
 
 class PromptTextRequest(BaseModel):
@@ -378,7 +379,7 @@ def pick_notes_folder_endpoint(body: PickNotesFolderRequest | None = None):
         initial_dir = os.getenv("NOTES_FOLDER_PATH", "").strip() or None
 
     try:
-        folder_path = pick_notes_folder(initial_dir)
+        folder_path = pick_notes_folder(initial_dir, body.title if body else None)
     except OSError as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     except RuntimeError as exc:

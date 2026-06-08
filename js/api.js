@@ -282,12 +282,14 @@ async function openNoteFile(path) {
     return data;
 }
 
-async function pickNotesFolder(initialDir = "") {
+async function pickNotesFolder(initialDir = "", title = "") {
     const base = getSyncBaseUrl();
+    const payload = { initialDir };
+    if (title) payload.title = title;
     const response = await syncRequest(`${base}/notes/pick-folder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initialDir }),
+        body: JSON.stringify(payload),
         timeoutMs: 120000
     });
     const data = await parseJsonResponse(response);

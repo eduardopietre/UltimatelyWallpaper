@@ -18,11 +18,11 @@ function setCollapsed(collapsed, persist = true) {
     if (collapsed && typeof isEventFormVisible === "function" && isEventFormVisible()) {
         closeEventForm();
     }
-    if (typeof applyCardPosition === "function") {
-        applyCardPosition(collapsed);
-    }
     if (typeof applyCardSizeForState === "function") {
         applyCardSizeForState(collapsed);
+    }
+    if (typeof scheduleEnsureCardOnScreen === "function") {
+        scheduleEnsureCardOnScreen();
     }
     if (persist) {
         localStorage.setItem(AppConfig.collapsedKey, collapsed ? "1" : "0");
@@ -102,6 +102,9 @@ function initApp() {
     setView(AppConfig.defaultView);
     updateClock();
     setInterval(updateClock, AppConfig.clockIntervalMs);
+    if (typeof scheduleEnsureCardOnScreen === "function") {
+        scheduleEnsureCardOnScreen();
+    }
     startPolling();
 }
 
