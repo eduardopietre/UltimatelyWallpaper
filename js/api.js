@@ -3,6 +3,44 @@ let isOnline = true;
 let syncInProgress = false;
 let healthTimer = null;
 
+function isWallpaperEngine() {
+    return typeof window.wallpaperPropertyListener !== "undefined";
+}
+
+function syncRequest(url, options = {}) {
+    const method = options.method || "GET";
+    const headers = { "Cache-Control": "no-store", ...(options.headers || {}) };
+    const body = options.body ?? null;
+    const timeoutMs = options.timeoutMs || 10000;
+
+    if (!isWallpaperEngine() && typeof fetch === "function" && !options.preferXhr) {
+        return fetch(url, { method, headers, body, cache: "no-store" });
+    }
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        xhr.timeout = timeoutMs;
+        for (const [key, value] of Object.entries(headers)) {
+            xhr.setRequestHeader(key, value);
+        }
+        xhr.onload = () => {
+            resolve({
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                text: async () => xhr.responseText,
+                json: async () => {
+                    if (!xhr.responseText) return {};
+                    return JSON.parse(xhr.responseText);
+                }
+            });
+        };
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.ontimeout = () => reject(new Error("Request timeout"));
+        xhr.send(body);
+    });
+}
+
 function readCache() {
     try {
         const raw = localStorage.getItem(AppConfig.cacheKey);
@@ -51,28 +89,34 @@ function updateHealthIndicator(online) {
     dot.setAttribute("aria-label", label);
 }
 
-async function checkSyncHealth() {
-    try {
-        const base = getSyncBaseUrl();
-        const response = await fetch(`${base}/health`, {
-            method: "GET",
-            cache: "no-store"
-        });
-        const online = response.ok;
-        updateHealthIndicator(online);
-        setOnlineStatus(online);
-        return online;
-    } catch {
-        updateHealthIndicator(false);
-        setOnlineStatus(false);
-        return false;
+async function checkSyncHealth(retries = 1) {
+    const base = getSyncBaseUrl();
+    for (let attempt = 0; attempt < retries; attempt += 1) {
+        try {
+            const response = await syncRequest(`${base}/health`, {
+                method: "GET",
+                timeoutMs: 5000
+            });
+            const online = response.ok;
+            updateHealthIndicator(online);
+            setOnlineStatus(online);
+            return online;
+        } catch {
+            if (attempt < retries - 1) {
+                await new Promise((resolve) => window.setTimeout(resolve, 1000));
+                continue;
+            }
+        }
     }
+    updateHealthIndicator(false);
+    setOnlineStatus(false);
+    return false;
 }
 
 function startHealthChecks() {
-    checkSyncHealth();
+    checkSyncHealth(5);
     if (healthTimer) window.clearInterval(healthTimer);
-    healthTimer = window.setInterval(checkSyncHealth, AppConfig.healthIntervalMs);
+    healthTimer = window.setInterval(() => checkSyncHealth(1), AppConfig.healthIntervalMs);
 }
 
 function getFetchDateRange() {
@@ -96,9 +140,8 @@ async function fetchEvents() {
         to: to.toISOString()
     });
 
-    const response = await fetch(`${base}/events?${params}`, {
-        method: "GET",
-        cache: "no-store"
+    const response = await syncRequest(`${base}/events?${params}`, {
+        method: "GET"
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -107,9 +150,8 @@ async function fetchEvents() {
 
 async function fetchCalendars() {
     const base = getSyncBaseUrl();
-    const response = await fetch(`${base}/calendars`, {
-        method: "GET",
-        cache: "no-store"
+    const response = await syncRequest(`${base}/calendars`, {
+        method: "GET"
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
@@ -117,9 +159,8 @@ async function fetchCalendars() {
 
 async function fetchSyncSettings() {
     const base = getSyncBaseUrl();
-    const response = await fetch(`${base}/settings`, {
-        method: "GET",
-        cache: "no-store"
+    const response = await syncRequest(`${base}/settings`, {
+        method: "GET"
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
@@ -127,17 +168,55 @@ async function fetchSyncSettings() {
 
 async function saveSyncSettings(payload) {
     const base = getSyncBaseUrl();
-    const response = await fetch(`${base}/settings`, {
+    const response = await syncRequest(`${base}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        cache: "no-store"
+        body: JSON.stringify(payload)
     });
     const data = await parseJsonResponse(response);
     if (!response.ok) {
         throw new Error(parseApiErrorDetail(data, response.status));
     }
     await checkSyncHealth();
+    return data;
+}
+
+async function fetchNotesFiles() {
+    const base = getSyncBaseUrl();
+    const response = await syncRequest(`${base}/notes/files`, {
+        method: "GET"
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function fetchNoteFile(path) {
+    const base = getSyncBaseUrl();
+    const params = new URLSearchParams({ path });
+    const response = await syncRequest(`${base}/notes/file?${params}`, {
+        method: "GET"
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+    return data;
+}
+
+async function toggleNoteTask(path, lineIndex, checked, expectedText) {
+    const base = getSyncBaseUrl();
+    const response = await syncRequest(`${base}/notes/task`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, lineIndex, checked, expectedText })
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
     return data;
 }
 
@@ -187,9 +266,8 @@ async function triggerSync(buttonEl) {
 
     try {
         const base = getSyncBaseUrl();
-        const response = await fetch(`${base}/sync`, {
-            method: "POST",
-            cache: "no-store"
+        const response = await syncRequest(`${base}/sync`, {
+            method: "POST"
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         await checkSyncHealth();
@@ -234,11 +312,10 @@ async function createEvent(payload) {
     let response;
 
     try {
-        response = await fetch(`${base}/events`, {
+        response = await syncRequest(`${base}/events`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            cache: "no-store"
+            body: JSON.stringify(payload)
         });
     } catch {
         throw new Error("Sync service unavailable, could not create event");

@@ -255,6 +255,8 @@ html, body {
 .calendar-body,
 .event-panel,
 .settings-panel,
+.notes-body,
+.notes-content,
 .custom-select-list {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.28) rgba(255, 255, 255, 0.06);
@@ -263,6 +265,8 @@ html, body {
 .calendar-body::-webkit-scrollbar,
 .event-panel::-webkit-scrollbar,
 .settings-panel::-webkit-scrollbar,
+.notes-body::-webkit-scrollbar,
+.notes-content::-webkit-scrollbar,
 .custom-select-list::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -271,6 +275,8 @@ html, body {
 .calendar-body::-webkit-scrollbar-track,
 .event-panel::-webkit-scrollbar-track,
 .settings-panel::-webkit-scrollbar-track,
+.notes-body::-webkit-scrollbar-track,
+.notes-content::-webkit-scrollbar-track,
 .custom-select-list::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 999px;
@@ -279,6 +285,8 @@ html, body {
 .calendar-body::-webkit-scrollbar-thumb,
 .event-panel::-webkit-scrollbar-thumb,
 .settings-panel::-webkit-scrollbar-thumb,
+.notes-body::-webkit-scrollbar-thumb,
+.notes-content::-webkit-scrollbar-thumb,
 .custom-select-list::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.24);
     border-radius: 999px;
@@ -287,6 +295,8 @@ html, body {
 .calendar-body::-webkit-scrollbar-thumb:hover,
 .event-panel::-webkit-scrollbar-thumb:hover,
 .settings-panel::-webkit-scrollbar-thumb:hover,
+.notes-body::-webkit-scrollbar-thumb:hover,
+.notes-content::-webkit-scrollbar-thumb:hover,
 .custom-select-list::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.34);
 }
@@ -570,6 +580,181 @@ html, body {
     background: rgba(255, 255, 255, 0.06);
 }
 
+.notes-card {
+    position: fixed;
+    top: var(--notes-y, 52%);
+    left: var(--notes-x, 78%);
+    transform: translate(-50%, -50%);
+    width: min(var(--notes-width, 420px), 92vw);
+    height: min(var(--notes-height, 560px), 88vh);
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(16, 19, 24, 0.92);
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.48);
+    overflow: hidden;
+    z-index: 6;
+    transition: width 0.25s ease, height 0.25s ease, opacity 0.25s ease;
+}
+
+.notes-card.dragging,
+.notes-card.resizing {
+    transition: none;
+}
+
+.notes-card.collapsed {
+    height: auto;
+    min-height: 0;
+}
+
+.notes-card.collapsed .notes-body,
+.notes-card.collapsed .notes-resize-handle {
+    display: none;
+}
+
+.notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: grab;
+    touch-action: none;
+}
+
+.notes-header.dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.notes-header-left,
+.notes-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.notes-title {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.notes-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    opacity: 0.82;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.notes-toggle input,
+.notes-task input {
+    accent-color: var(--accent-color, #3a588e);
+}
+
+.notes-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    flex: 1;
+    padding: 14px;
+}
+
+.notes-file-dropdown {
+    flex-shrink: 0;
+}
+
+.notes-file-dropdown .custom-select-list {
+    max-height: 220px;
+}
+
+.notes-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.notes-task {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 30px;
+    padding: 6px 8px 6px calc(8px + (var(--task-depth, 0) * 18px));
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+}
+
+.notes-task:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.notes-task input {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.notes-task span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.86rem;
+    line-height: 1.35;
+}
+
+.notes-task.completed span {
+    opacity: 0.52;
+    text-decoration: line-through;
+}
+
+.notes-error {
+    color: #f08080;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(240, 128, 128, 0.08);
+}
+
+.notes-resize-handle {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    opacity: 0.55;
+    z-index: 7;
+}
+
+.notes-resize-handle::before,
+.notes-resize-handle::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid rgba(255, 255, 255, 0.45);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+}
+
+.notes-resize-handle::after {
+    width: 6px;
+    height: 6px;
+}
+
 /* Event form panel (outside calendar-card, avoids CEF crash inside transformed parent) */
 .event-panel {
     position: fixed;
@@ -639,6 +824,36 @@ html, body {
     gap: 14px;
 }
 
+.settings-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 3px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-tab-btn {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 10px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+}
+
+.settings-tab-btn.active {
+    background: var(--accent-color, #3a588e);
+}
+
+.settings-tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
 .settings-section {
     display: flex;
     flex-direction: column;
@@ -690,6 +905,20 @@ html, body {
     color: #fff;
     font: inherit;
     font-size: 0.85rem;
+}
+
+.settings-toggle-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    cursor: pointer;
+}
+
+.settings-toggle-field input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color, #3a588e);
 }
 
 .settings-field input:focus {

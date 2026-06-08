@@ -56,6 +56,31 @@
 
     <div id="event-panel-host" class="event-panel hidden"></div>
     <div id="settings-panel-host" class="settings-panel hidden"></div>
+    <div id="notes-card" class="notes-card hidden">
+        <header id="notes-header" class="notes-header">
+            <div class="notes-header-left">
+                <button id="notes-collapse-btn" class="collapse-btn" type="button" aria-label="Toggle notes">-</button>
+                <h2 class="notes-title">Notes</h2>
+            </div>
+            <div class="notes-header-right">
+                <label class="notes-toggle">
+                    <input id="notes-hide-completed" type="checkbox">
+                    <span>Hide completed</span>
+                </label>
+            </div>
+        </header>
+        <div id="notes-body" class="notes-body">
+            <div id="notes-file-dropdown" class="notes-file-dropdown custom-select" aria-label="Notes file">
+                <input id="notes-file-path" type="hidden" value="">
+                <div class="custom-select-control">
+                    <button id="notes-file-trigger" class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">No notes</button>
+                    <div id="notes-file-list" class="custom-select-list hidden" role="listbox"></div>
+                </div>
+            </div>
+            <div id="notes-content" class="notes-content"></div>
+        </div>
+        <div id="notes-resize-handle" class="notes-resize-handle" aria-hidden="true"></div>
+    </div>
 
     <script src="js/config.js"></script>
     <script src="js/background.js"></script>
@@ -66,6 +91,7 @@
     <script src="js/wallpaperPicker.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/eventForm.js"></script>
+    <script src="js/notes.js"></script>
     <script src="js/wpListener.js"></script>
     <script src="js/app.js"></script>
 </body>

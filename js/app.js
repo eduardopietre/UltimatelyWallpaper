@@ -98,6 +98,7 @@ function initApp() {
     if (typeof initSettingsPanel === "function") initSettingsPanel();
     if (typeof initWallpaperPicker === "function") initWallpaperPicker();
     if (typeof initEventForm === "function") initEventForm();
+    if (typeof initNotesWindow === "function") initNotesWindow();
     setView(AppConfig.defaultView);
     updateClock();
     setInterval(updateClock, AppConfig.clockIntervalMs);

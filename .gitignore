@@ -1,5 +1,12 @@
 .cursor/*
-sync-service/*
+sync-service/.env
+sync-service/logs/*
+sync-service/.env
+sync-service/.venv/*
+sync-service/.env
+sync-service/cache/*
+sync-service/__pycache__/*
+sync-service/config.toml
 .venv/*
 .env
 config.toml

@@ -1,0 +1,14 @@
+[server]
+host = "127.0.0.1"
+port = 8765
+
+[sync]
+interval_minutes = 10
+days_past = 30
+days_future = 180
+
+[caldav]
+url = "https://caldav.icloud.com/"
+
+[cache]
+directory = "cache"

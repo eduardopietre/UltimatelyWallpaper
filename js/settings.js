@@ -19,6 +19,34 @@ function createSettingsField(parent, labelText, inputId, type, placeholder) {
     return input;
 }
 
+function createSettingsToggle(parent, labelText, inputId) {
+    const wrap = document.createElement("label");
+    wrap.className = "settings-toggle-field";
+
+    const input = document.createElement("input");
+    input.id = inputId;
+    input.type = "checkbox";
+
+    const text = document.createElement("span");
+    text.textContent = labelText;
+
+    wrap.appendChild(input);
+    wrap.appendChild(text);
+    parent.appendChild(wrap);
+    return input;
+}
+
+function setSettingsTab(tabName) {
+    document.querySelectorAll(".settings-tab-btn").forEach((btn) => {
+        const active = btn.dataset.tab === tabName;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    document.querySelectorAll(".settings-tab-panel").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.tab !== tabName);
+    });
+}
+
 function buildSettingsPanelDom() {
     if (settingsPanelBuilt) return true;
     const host = document.getElementById("settings-panel-host");
@@ -41,8 +69,41 @@ function buildSettingsPanelDom() {
     header.appendChild(title);
     header.appendChild(closeBtn);
 
+    const tabs = document.createElement("div");
+    tabs.className = "settings-tabs";
+    tabs.setAttribute("role", "tablist");
+
+    const calendarTab = document.createElement("button");
+    calendarTab.type = "button";
+    calendarTab.className = "settings-tab-btn active";
+    calendarTab.dataset.tab = "calendar";
+    calendarTab.textContent = "Calendar";
+    calendarTab.setAttribute("role", "tab");
+    calendarTab.setAttribute("aria-selected", "true");
+    calendarTab.addEventListener("click", () => setSettingsTab("calendar"));
+
+    const notesTab = document.createElement("button");
+    notesTab.type = "button";
+    notesTab.className = "settings-tab-btn";
+    notesTab.dataset.tab = "notes";
+    notesTab.textContent = "Notes";
+    notesTab.setAttribute("role", "tab");
+    notesTab.setAttribute("aria-selected", "false");
+    notesTab.addEventListener("click", () => setSettingsTab("notes"));
+
+    tabs.appendChild(calendarTab);
+    tabs.appendChild(notesTab);
+
     const body = document.createElement("div");
     body.className = "settings-form";
+
+    const calendarPanel = document.createElement("div");
+    calendarPanel.className = "settings-tab-panel";
+    calendarPanel.dataset.tab = "calendar";
+
+    const notesPanel = document.createElement("div");
+    notesPanel.className = "settings-tab-panel hidden";
+    notesPanel.dataset.tab = "notes";
 
     const bgActions = document.createElement("div");
     bgActions.className = "settings-section";
@@ -89,8 +150,27 @@ function buildSettingsPanelDom() {
     const error = document.createElement("p");
     error.id = "settings-error";
     error.className = "settings-error";
-    body.appendChild(bgActions);
-    body.appendChild(syncSection);
+    calendarPanel.appendChild(bgActions);
+    calendarPanel.appendChild(syncSection);
+
+    const notesSection = document.createElement("div");
+    notesSection.className = "settings-section";
+    const notesTitle = document.createElement("div");
+    notesTitle.className = "settings-section-title";
+    notesTitle.textContent = "Notes Window";
+    notesSection.appendChild(notesTitle);
+    createSettingsToggle(notesSection, "Enable notes window", "settings-notes-enabled");
+    createSettingsField(notesSection, "NOTES_FOLDER_PATH", "settings-notes-folder-path", "text", "C:\\Users\\You\\Documents\\Notes");
+
+    const notesHint = document.createElement("p");
+    notesHint.className = "settings-hint";
+    notesHint.textContent = "Use an existing folder. Markdown files in subfolders are included.";
+    notesSection.appendChild(notesHint);
+    notesPanel.appendChild(notesSection);
+
+    body.appendChild(tabs);
+    body.appendChild(calendarPanel);
+    body.appendChild(notesPanel);
     body.appendChild(error);
 
     const footer = document.createElement("div");
@@ -133,6 +213,11 @@ function setSettingsFieldValue(id, value) {
     if (el) el.value = value;
 }
 
+function setSettingsCheckboxValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.checked = Boolean(value);
+}
+
 async function loadSettingsIntoForm() {
     showSettingsError("");
     setSettingsFieldValue("settings-app-password", "");
@@ -141,6 +226,8 @@ async function loadSettingsIntoForm() {
         const settings = await fetchSyncSettings();
         setSettingsFieldValue("settings-apple-id", settings.appleId || "");
         setSettingsFieldValue("settings-sync-interval", String(settings.syncIntervalMinutes || 10));
+        setSettingsCheckboxValue("settings-notes-enabled", settings.notesEnabled);
+        setSettingsFieldValue("settings-notes-folder-path", settings.notesFolderPath || "");
         const hint = document.getElementById("settings-password-hint");
         if (hint) {
             hint.textContent = settings.hasAppPassword
@@ -148,7 +235,7 @@ async function loadSettingsIntoForm() {
                 : "No app password saved yet.";
         }
     } catch {
-        showSettingsError("Sync service unavailable. Start it to edit iCloud settings.");
+        showSettingsError("Sync service unavailable. Start it to edit settings.");
     }
 }
 
@@ -157,6 +244,8 @@ function readSettingsPayload() {
     const appPassword = document.getElementById("settings-app-password")?.value || "";
     const rawInterval = document.getElementById("settings-sync-interval")?.value.trim() || "";
     const syncIntervalMinutes = Number(rawInterval);
+    const notesEnabled = Boolean(document.getElementById("settings-notes-enabled")?.checked);
+    const notesFolderPath = document.getElementById("settings-notes-folder-path")?.value.trim() || "";
 
     if (!appleId) {
         throw new Error("APPLE_ID is required");
@@ -164,8 +253,11 @@ function readSettingsPayload() {
     if (!Number.isInteger(syncIntervalMinutes) || syncIntervalMinutes <= 0) {
         throw new Error("SYNC_INTERVAL_MINUTES must be a positive integer");
     }
+    if (notesEnabled && !notesFolderPath) {
+        throw new Error("NOTES_FOLDER_PATH is required when notes are enabled");
+    }
 
-    return { appleId, appPassword, syncIntervalMinutes };
+    return { appleId, appPassword, syncIntervalMinutes, notesEnabled, notesFolderPath };
 }
 
 async function submitSettings() {
@@ -179,6 +271,9 @@ async function submitSettings() {
         await saveSyncSettings(payload);
         setSettingsFieldValue("settings-app-password", "");
         updateSyncStatus("Settings saved");
+        if (typeof refreshNotesSettings === "function") {
+            refreshNotesSettings();
+        }
         closeSettingsPanel();
     } finally {
         if (saveBtn) saveBtn.disabled = false;
