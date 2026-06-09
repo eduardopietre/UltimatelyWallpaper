@@ -2,6 +2,8 @@ let eventFormOpen = false;
 let eventFormBuilt = false;
 let calendarPickIndex = 0;
 let allDayEnabled = false;
+let eventFormMode = "create";
+let editingEvent = null;
 
 const REPEAT_OPTIONS = [
     { value: "never", label: "Never" },
@@ -119,7 +121,7 @@ function closeAllCustomSelects(exceptWrap) {
     });
 }
 
-function createCustomSelect(parent, labelText, fieldId, options) {
+function createCustomSelect(parent, labelText, fieldId, options, optionRenderer) {
     const wrap = document.createElement("div");
     wrap.className = "event-field custom-select";
     wrap._customSelectOptions = options;
@@ -148,6 +150,9 @@ function createCustomSelect(parent, labelText, fieldId, options) {
     function setValue(value) {
         hidden.value = value;
         syncCustomSelectDisplay(wrap, value);
+        if (fieldId === "event-calendar-id" && typeof onCalendarSelected === "function") {
+            onCalendarSelected(value);
+        }
     }
 
     for (const opt of options) {
@@ -155,7 +160,11 @@ function createCustomSelect(parent, labelText, fieldId, options) {
         btn.type = "button";
         btn.className = "custom-select-option";
         btn.dataset.value = opt.value;
-        btn.textContent = opt.label;
+        if (optionRenderer) {
+            btn.innerHTML = optionRenderer(opt);
+        } else {
+            btn.textContent = opt.label;
+        }
         btn.setAttribute("role", "option");
         btn.addEventListener("click", (e) => {
             e.preventDefault();
@@ -198,19 +207,39 @@ function getCachedCalendars() {
     return typeof getCalendars === "function" ? getCalendars() : [];
 }
 
+function getCalendarOptions() {
+    const calendars = getCachedCalendars();
+    if (!calendars.length) {
+        return [{ value: "", label: "No calendars (sync first)", color: "#888" }];
+    }
+    return calendars.map((c) => ({
+        value: c.id,
+        label: c.name || c.id,
+        color: c.color || "#3a588e"
+    }));
+}
+
 function getSelectedCalendar() {
     const calendars = getCachedCalendars();
     if (!calendars.length) return null;
+    const selectedId = readFormValue("event-calendar-id");
+    if (selectedId) {
+        const found = calendars.find((c) => c.id === selectedId);
+        if (found) return found;
+    }
     if (calendarPickIndex >= calendars.length) calendarPickIndex = 0;
     if (calendarPickIndex < 0) calendarPickIndex = 0;
     return calendars[calendarPickIndex];
 }
 
-function updateCalendarPickerDisplay() {
-    const nameEl = document.getElementById("event-calendar-name");
-    const cal = getSelectedCalendar();
-    if (nameEl) {
-        nameEl.textContent = cal ? cal.name || cal.id : "No calendars (sync first)";
+function onCalendarSelected(calendarId) {
+    const calendars = getCachedCalendars();
+    const idx = calendars.findIndex((c) => c.id === calendarId);
+    if (idx >= 0) calendarPickIndex = idx;
+    try {
+        localStorage.setItem(AppConfig.lastCalendarIdKey, calendarId);
+    } catch {
+        /* ignore */
     }
 }
 
@@ -227,13 +256,6 @@ function initCalendarPickerIndex() {
     } catch {
         calendarPickIndex = 0;
     }
-}
-
-function shiftCalendarPick(delta) {
-    const calendars = getCachedCalendars();
-    if (!calendars.length) return;
-    calendarPickIndex = (calendarPickIndex + delta + calendars.length) % calendars.length;
-    updateCalendarPickerDisplay();
 }
 
 function setAllDayMode(allDay) {
@@ -262,6 +284,11 @@ function createField(parent, labelText, inputId, placeholder) {
     return input;
 }
 
+function renderCalendarOption(opt) {
+    const color = opt.color || "#3a588e";
+    return `<span class="calendar-option"><span class="calendar-swatch" style="background:${color}"></span>${opt.label}</span>`;
+}
+
 function buildEventFormDom() {
     if (eventFormBuilt) return true;
     const host = document.getElementById("event-panel-host");
@@ -271,6 +298,7 @@ function buildEventFormDom() {
     header.className = "event-panel-header";
 
     const title = document.createElement("h2");
+    title.id = "event-panel-title";
     title.className = "event-panel-title";
     title.textContent = "New Event";
 
@@ -278,7 +306,7 @@ function buildEventFormDom() {
     closeBtn.id = "event-close-btn";
     closeBtn.type = "button";
     closeBtn.className = "event-panel-close";
-    closeBtn.textContent = "×";
+    closeBtn.innerHTML = "&times;";
     closeBtn.addEventListener("click", closeEventForm);
 
     header.appendChild(title);
@@ -327,31 +355,8 @@ function buildEventFormDom() {
     createField(body, "URL", "event-url", "");
     createField(body, "Notes", "event-notes", "");
 
-    const calWrap = document.createElement("div");
-    calWrap.className = "event-field";
-    const calLabel = document.createElement("span");
-    calLabel.textContent = "Calendar";
-    const calRow = document.createElement("div");
-    calRow.className = "event-calendar-row";
-    const calPrev = document.createElement("button");
-    calPrev.type = "button";
-    calPrev.className = "event-calendar-nav";
-    calPrev.textContent = "‹";
-    calPrev.addEventListener("click", () => shiftCalendarPick(-1));
-    const calName = document.createElement("span");
-    calName.id = "event-calendar-name";
-    calName.className = "event-calendar-name";
-    const calNext = document.createElement("button");
-    calNext.type = "button";
-    calNext.className = "event-calendar-nav";
-    calNext.textContent = "›";
-    calNext.addEventListener("click", () => shiftCalendarPick(1));
-    calRow.appendChild(calPrev);
-    calRow.appendChild(calName);
-    calRow.appendChild(calNext);
-    calWrap.appendChild(calLabel);
-    calWrap.appendChild(calRow);
-    body.appendChild(calWrap);
+    const calOptions = getCalendarOptions();
+    createCustomSelect(body, "Calendar", "event-calendar-id", calOptions, renderCalendarOption);
 
     const errorEl = document.createElement("p");
     errorEl.id = "event-form-error";
@@ -393,11 +398,19 @@ function isEventFormVisible() {
     return host && !host.classList.contains("hidden");
 }
 
-function resetEventFormFields(startDate) {
+function setEventFormTitle(text) {
+    const title = document.getElementById("event-panel-title");
+    if (title) title.textContent = text;
+}
+
+function resetEventFormFields(startDate, startTime) {
     const start = startDate ? new Date(startDate) : new Date();
     if (!startDate) {
         start.setMinutes(0, 0, 0);
         start.setHours(start.getHours() + 1);
+    } else if (startTime) {
+        const { hours, minutes } = parseTimeText(startTime);
+        start.setHours(hours, minutes, 0, 0);
     } else {
         start.setHours(9, 0, 0, 0);
     }
@@ -416,20 +429,50 @@ function resetEventFormFields(startDate) {
     setFieldValue("event-end-time", toTimeInputValue(end));
     setFieldValue("event-repeat", "never");
     setFieldValue("event-alert", "none");
-    updateCalendarPickerDisplay();
+
+    const cal = getSelectedCalendar();
+    if (cal) setFieldValue("event-calendar-id", cal.id);
 
     const errorEl = document.getElementById("event-form-error");
     if (errorEl) errorEl.textContent = "";
 }
 
-function openEventForm({ startDate } = {}) {
+function fillEventFormFromEvent(ev) {
+    const start = new Date(ev.start);
+    let end = new Date(ev.end || ev.start);
+    if (ev.allDay && end > start) {
+        end = new Date(end);
+        end.setDate(end.getDate() - 1);
+        if (end < start) end = new Date(start);
+    }
+
+    setAllDayMode(!!ev.allDay);
+    setFieldValue("event-title", ev.title || "");
+    setFieldValue("event-location", ev.location || "");
+    setFieldValue("event-url", ev.url || "");
+    setFieldValue("event-notes", ev.description || "");
+    setFieldValue("event-start-date", toDateInputValue(start));
+    setFieldValue("event-end-date", toDateInputValue(end));
+    if (!ev.allDay) {
+        setFieldValue("event-start-time", toTimeInputValue(start));
+        setFieldValue("event-end-time", toTimeInputValue(end));
+    }
+    setFieldValue("event-repeat", "never");
+    setFieldValue("event-alert", "none");
+    if (ev.calendarId) setFieldValue("event-calendar-id", ev.calendarId);
+}
+
+function openEventForm({ startDate, startTime } = {}) {
     const host = document.getElementById("event-panel-host");
     if (!host) return;
 
     window.setTimeout(() => {
         try {
             if (!buildEventFormDom()) return;
-            resetEventFormFields(startDate);
+            eventFormMode = "create";
+            editingEvent = null;
+            setEventFormTitle("New Event");
+            resetEventFormFields(startDate, startTime);
             host.classList.remove("hidden");
             eventFormOpen = true;
         } catch (err) {
@@ -441,10 +484,31 @@ function openEventForm({ startDate } = {}) {
     }, 0);
 }
 
+function openEventFormForEdit(ev) {
+    const host = document.getElementById("event-panel-host");
+    if (!host) return;
+
+    window.setTimeout(() => {
+        try {
+            if (!buildEventFormDom()) return;
+            eventFormMode = "edit";
+            editingEvent = ev;
+            setEventFormTitle("Edit Event");
+            fillEventFormFromEvent(ev);
+            host.classList.remove("hidden");
+            eventFormOpen = true;
+        } catch (err) {
+            console.error("openEventFormForEdit failed:", err);
+        }
+    }, 0);
+}
+
 function closeEventForm() {
     closeAllCustomSelects();
     document.getElementById("event-panel-host")?.classList.add("hidden");
     eventFormOpen = false;
+    eventFormMode = "create";
+    editingEvent = null;
 }
 
 function buildEventPayload() {
@@ -473,8 +537,12 @@ function buildEventPayload() {
 
     const startDt = allDayEnabled ? startDate : new Date(start);
     const endDt = allDayEnabled ? endDate : new Date(end);
-    if (endDt < startDt) {
-        throw new Error("End must be on or after start");
+    if (allDayEnabled) {
+        if (endDt < startDt) {
+            throw new Error("End date must be on or after start date");
+        }
+    } else if (endDt <= startDt) {
+        throw new Error("End time must be after start time");
     }
 
     const cal = getSelectedCalendar();
@@ -491,7 +559,7 @@ function buildEventPayload() {
     const repeat = readFormValue("event-repeat") || "never";
     const alert = readFormValue("event-alert") || "none";
 
-    return {
+    const payload = {
         title,
         location: readFormValue("event-location").trim(),
         all_day: allDayEnabled,
@@ -503,12 +571,21 @@ function buildEventPayload() {
         notes: readFormValue("event-notes").trim(),
         calendar_id: cal.id
     };
+
+    if (eventFormMode === "edit" && editingEvent) {
+        payload.calendar_id = editingEvent.calendarId || cal.id;
+        payload.uid = editingEvent.uid;
+        payload.recurrence_id = editingEvent.recurrenceId || "";
+        payload.scope = "series";
+    }
+
+    return payload;
 }
 
 function formatApiError(err) {
-    if (!err) return "Failed to create event";
+    if (!err) return "Failed to save event";
     if (typeof err.message === "string" && err.message) return err.message;
-    return "Failed to create event";
+    return "Failed to save event";
 }
 
 async function submitEventForm() {
@@ -520,11 +597,18 @@ async function submitEventForm() {
         const payload = buildEventPayload();
         if (saveBtn) saveBtn.disabled = true;
         if (errorEl) errorEl.textContent = "";
-        const result = await createEvent(payload);
+
+        let result;
+        if (eventFormMode === "edit") {
+            result = await updateEvent(payload);
+        } else {
+            result = await createEvent(payload);
+        }
+
         if (result?.syncFailed && typeof updateSyncStatus === "function") {
-            updateSyncStatus("Event created, sync cache update failed");
+            updateSyncStatus("Event saved, sync cache update failed");
         } else if (result?.refreshFailed && typeof updateSyncStatus === "function") {
-            updateSyncStatus("Event created, calendar refresh failed");
+            updateSyncStatus("Event saved, calendar refresh failed");
         }
         closeEventForm();
     } catch (err) {
@@ -534,10 +618,24 @@ async function submitEventForm() {
     }
 }
 
+function rebuildCalendarSelect() {
+    const existing = document.getElementById("event-calendar-id");
+    if (!existing) return;
+    const wrap = existing.closest(".custom-select");
+    const parent = wrap?.parentElement;
+    if (!wrap || !parent) return;
+
+    const calOptions = getCalendarOptions();
+    wrap.remove();
+    createCustomSelect(parent, "Calendar", "event-calendar-id", calOptions, renderCalendarOption);
+    initCalendarPickerIndex();
+    const cal = getSelectedCalendar();
+    if (cal) setFieldValue("event-calendar-id", cal.id);
+}
+
 function populateCalendarSelect() {
     if (!eventFormBuilt) return;
-    initCalendarPickerIndex();
-    updateCalendarPickerDisplay();
+    rebuildCalendarSelect();
 }
 
 function initEventForm() {

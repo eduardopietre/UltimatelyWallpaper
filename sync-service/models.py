@@ -18,6 +18,13 @@ class EventInfo:
     all_day: bool
     location: str
     calendar: str
+    calendar_id: str = ""
+    uid: str = ""
+    description: str = ""
+    url: str = ""
+    is_recurring: bool = False
+    recurrence_id: str = ""
+    calendar_color: str = "#3a588e"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -28,6 +35,13 @@ class EventInfo:
             "allDay": self.all_day,
             "location": self.location,
             "calendar": self.calendar,
+            "calendarId": self.calendar_id,
+            "uid": self.uid,
+            "description": self.description,
+            "url": self.url,
+            "isRecurring": self.is_recurring,
+            "recurrenceId": self.recurrence_id,
+            "calendarColor": self.calendar_color,
         }
 
 

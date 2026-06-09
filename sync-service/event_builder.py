@@ -42,6 +42,56 @@ ALERT_TRIGGER = {
 }
 
 
+class UpdateEventRequest(BaseModel):
+    calendar_id: str
+    uid: str
+    title: str
+    location: str = ""
+    all_day: bool = False
+    start: str
+    end: str
+    repeat: RepeatOption = "never"
+    alert: AlertOption = "none"
+    url: str = ""
+    notes: str = ""
+    recurrence_id: str = ""
+    scope: Literal["this", "series"] = "series"
+
+    @field_validator("title")
+    @classmethod
+    def title_not_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Title is required")
+        return cleaned
+
+    @field_validator("calendar_id")
+    @classmethod
+    def calendar_id_not_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Calendar is required")
+        return cleaned
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "UpdateEventRequest":
+        start_dt = _parse_datetime(self.start, self.all_day)
+        end_dt = _parse_datetime(self.end, self.all_day, is_end=True)
+        if self.all_day:
+            if end_dt < start_dt:
+                raise ValueError("End date must be on or after start date")
+        elif end_dt <= start_dt:
+            raise ValueError("End time must be after start time")
+        return self
+
+
+class DeleteEventRequest(BaseModel):
+    calendar_id: str
+    uid: str
+    recurrence_id: str = ""
+    scope: Literal["this", "series"] = "series"
+
+
 class CreateEventRequest(BaseModel):
     title: str
     location: str = ""
@@ -74,8 +124,11 @@ class CreateEventRequest(BaseModel):
     def validate_dates(self) -> "CreateEventRequest":
         start_dt = _parse_datetime(self.start, self.all_day)
         end_dt = _parse_datetime(self.end, self.all_day, is_end=True)
-        if end_dt < start_dt:
-            raise ValueError("End must be on or after start")
+        if self.all_day:
+            if end_dt < start_dt:
+                raise ValueError("End date must be on or after start date")
+        elif end_dt <= start_dt:
+            raise ValueError("End time must be after start time")
         return self
 
 
@@ -89,13 +142,25 @@ def _parse_datetime(value: str, all_day: bool, is_end: bool = False) -> datetime
     return dt.astimezone(timezone.utc)
 
 
-def build_vevent_ical(payload: CreateEventRequest) -> str:
+def build_vevent_ical(
+    payload: CreateEventRequest | UpdateEventRequest,
+    uid: str | None = None,
+    recurrence_id: str | None = None,
+) -> str:
     cal = Calendar()
     cal.add("prodid", "-//calendar-wallpaper//sync-service//EN")
     cal.add("version", "2.0")
 
     event = Event()
-    event.add("uid", str(uuid.uuid4()))
+    event.add("uid", uid or str(uuid.uuid4()))
+    if recurrence_id:
+        if payload.all_day:
+            event.add("recurrence-id", date.fromisoformat(recurrence_id[:10]))
+        else:
+            rid = datetime.fromisoformat(recurrence_id.replace("Z", "+00:00"))
+            if rid.tzinfo is None:
+                rid = rid.replace(tzinfo=timezone.utc)
+            event.add("recurrence-id", rid.astimezone(timezone.utc))
     event.add("dtstamp", datetime.now(timezone.utc))
     event.add("summary", payload.title)
     if payload.location:

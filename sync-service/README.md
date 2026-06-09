@@ -70,10 +70,21 @@ python main.py
 | GET | `/settings` | Safe sync settings without exposing the app password |
 | POST | `/settings` | Update Apple ID, app password, and sync interval |
 | GET | `/calendars` | List synced calendars |
-| GET | `/events?from=&to=` | Events in ISO date range |
+| GET | `/events?from=&to=` | Events overlapping ISO date range |
+| POST | `/events` | Create a calendar event |
+| PATCH | `/events` | Update a calendar event |
+| DELETE | `/events` | Delete a calendar event |
+| POST | `/sync` | Run sync immediately |
 | GET | `/notes/files` | List markdown files when notes are enabled |
-| GET | `/notes/file?path=` | Read parsed markdown tasks from one notes file |
-| POST | `/notes/task` | Toggle one markdown task atomically |
+| GET | `/notes/file?path=` | Read parsed tasks and headings from one notes file |
+| POST | `/notes/task` | Toggle one markdown task |
+| POST | `/notes/task/add` | Add a task (`afterLineIndex` optional) |
+| POST | `/notes/task/edit` | Edit task text |
+| POST | `/notes/task/subtask` | Add a subtask under a parent task |
+| POST | `/notes/task/action` | Move, indent, outdent, or delete a task |
+| POST | `/notes/pick-folder` | Open folder picker (Windows) |
+| POST | `/notes/prompt` | Open text prompt dialog (Windows) |
+| POST | `/notes/open-file` | Open a note file in the default app |
 
 ## Logs
 

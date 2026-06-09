@@ -1,7 +1,13 @@
 let calendarData = { updatedAt: null, calendars: [], events: [] };
 let isOnline = true;
+let syncHealthStatus = "offline";
+let syncHealthError = null;
 let syncInProgress = false;
 let healthTimer = null;
+let pollTimer = null;
+let calendarLoadState = "loading";
+let calendarLoadError = null;
+let hasLoadedOnce = false;
 
 function isWallpaperEngine() {
     return typeof window.wallpaperPropertyListener !== "undefined";
@@ -62,7 +68,22 @@ function writeCache(data) {
 function filterEvents(events) {
     if (!AppConfig.calendarFilter.length) return events;
     const allowed = new Set(AppConfig.calendarFilter);
-    return events.filter((e) => allowed.has(e.calendar));
+    const calendars = calendarData.calendars || [];
+    const nameToId = new Map(calendars.map((c) => [c.name, c.id]));
+    return events.filter((e) => {
+        if (allowed.has(e.calendarId)) return true;
+        if (allowed.has(e.calendar)) return true;
+        const mappedId = nameToId.get(e.calendar);
+        return mappedId ? allowed.has(mappedId) : false;
+    });
+}
+
+function getCalendarLoadState() {
+    return calendarLoadState;
+}
+
+function getCalendarLoadError() {
+    return calendarLoadError;
 }
 
 function setOnlineStatus(online) {
@@ -79,12 +100,18 @@ function updateSyncStatus(text) {
     if (el) el.textContent = text;
 }
 
-function updateHealthIndicator(online) {
+function updateHealthIndicator(status, errorText) {
     const dot = document.getElementById("sync-health-dot");
     if (!dot) return;
-    dot.classList.toggle("online", online);
-    dot.classList.toggle("offline", !online);
-    const label = online ? "Sync service online" : "Sync service offline";
+    dot.classList.toggle("online", status === "ok");
+    dot.classList.toggle("degraded", status === "degraded");
+    dot.classList.toggle("offline", status === "offline");
+
+    let label = "Sync service offline";
+    if (status === "ok") label = "Sync healthy";
+    else if (status === "degraded") {
+        label = errorText ? `Sync degraded: ${errorText}` : "Sync degraded";
+    }
     dot.title = label;
     dot.setAttribute("aria-label", label);
 }
@@ -97,10 +124,19 @@ async function checkSyncHealth(retries = 1) {
                 method: "GET",
                 timeoutMs: 5000
             });
-            const online = response.ok;
-            updateHealthIndicator(online);
-            setOnlineStatus(online);
-            return online;
+            if (!response.ok) {
+                syncHealthStatus = "offline";
+                syncHealthError = null;
+                updateHealthIndicator("offline");
+                setOnlineStatus(false);
+                return false;
+            }
+            const data = await response.json();
+            syncHealthStatus = data.status === "degraded" ? "degraded" : "ok";
+            syncHealthError = data.error || null;
+            updateHealthIndicator(syncHealthStatus, syncHealthError);
+            setOnlineStatus(true);
+            return true;
         } catch {
             if (attempt < retries - 1) {
                 await new Promise((resolve) => window.setTimeout(resolve, 1000));
@@ -108,7 +144,9 @@ async function checkSyncHealth(retries = 1) {
             }
         }
     }
-    updateHealthIndicator(false);
+    syncHealthStatus = "offline";
+    syncHealthError = null;
+    updateHealthIndicator("offline");
     setOnlineStatus(false);
     return false;
 }
@@ -343,7 +381,22 @@ function getCalendars() {
 }
 
 async function refreshCalendarData() {
+    if (!hasLoadedOnce) {
+        calendarLoadState = "loading";
+        if (typeof renderCurrentView === "function") renderCurrentView();
+    }
+
     try {
+        let settings = null;
+        try {
+            settings = await fetchSyncSettings();
+            if (settings?.syncIntervalMinutes) {
+                AppConfig.pollIntervalMs = settings.syncIntervalMinutes * 60 * 1000;
+            }
+        } catch {
+            /* settings optional on refresh */
+        }
+
         const data = await fetchEvents();
         calendarData = {
             updatedAt: data.updatedAt,
@@ -352,23 +405,47 @@ async function refreshCalendarData() {
         };
         writeCache(calendarData);
         setOnlineStatus(true);
+        hasLoadedOnce = true;
+
+        if (settings && !settings.hasAppPassword) {
+            calendarLoadState = "no_credentials";
+        } else if (syncHealthStatus === "degraded") {
+            calendarLoadState = calendarData.events.length ? "ready" : "error";
+            calendarLoadError = syncHealthError || "Sync failed";
+        } else {
+            calendarLoadState = calendarData.events.length ? "ready" : "empty";
+            calendarLoadError = null;
+        }
+
         const updated = calendarData.updatedAt
             ? new Date(calendarData.updatedAt).toLocaleString()
             : "just now";
-        updateSyncStatus(`Last sync: ${updated}`);
+        let statusText = `Last sync: ${updated}`;
+        if (syncHealthStatus === "degraded" && syncHealthError) {
+            statusText += ` (${syncHealthError})`;
+        }
+        updateSyncStatus(statusText);
         if (typeof renderCurrentView === "function") renderCurrentView();
         if (typeof populateCalendarSelect === "function") populateCalendarSelect();
+        if (typeof populateCalendarFilterSettings === "function") populateCalendarFilterSettings();
         return true;
-    } catch {
+    } catch (err) {
         const cached = readCache();
+        hasLoadedOnce = true;
         if (cached) {
             calendarData = {
                 updatedAt: cached.updatedAt,
                 calendars: cached.calendars || [],
                 events: filterEvents(cached.events || [])
             };
+            calendarLoadState = calendarData.events.length ? "ready" : "empty";
             if (typeof renderCurrentView === "function") renderCurrentView();
             if (typeof populateCalendarSelect === "function") populateCalendarSelect();
+            if (typeof populateCalendarFilterSettings === "function") populateCalendarFilterSettings();
+        } else {
+            calendarLoadState = "error";
+            calendarLoadError = err?.message || "Sync service unavailable";
+            if (typeof renderCurrentView === "function") renderCurrentView();
         }
         setOnlineStatus(false);
         updateSyncStatus("Using cached data, sync service unavailable");
@@ -425,6 +502,62 @@ async function parseJsonResponse(response) {
     }
 }
 
+async function updateEvent(payload) {
+    const base = getSyncBaseUrl();
+    let response;
+
+    try {
+        response = await syncRequest(`${base}/events`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+    } catch {
+        throw new Error("Sync service unavailable, could not update event");
+    }
+
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+
+    try {
+        await refreshCalendarData();
+    } catch {
+        /* ignore */
+    }
+
+    return data;
+}
+
+async function deleteEvent(payload) {
+    const base = getSyncBaseUrl();
+    let response;
+
+    try {
+        response = await syncRequest(`${base}/events`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+    } catch {
+        throw new Error("Sync service unavailable, could not delete event");
+    }
+
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+        throw new Error(parseApiErrorDetail(data, response.status));
+    }
+
+    try {
+        await refreshCalendarData();
+    } catch {
+        /* ignore */
+    }
+
+    return data;
+}
+
 async function createEvent(payload) {
     const base = getSyncBaseUrl();
     let response;
@@ -458,8 +591,14 @@ function getEvents() {
     return calendarData.events || [];
 }
 
+function restartPolling(intervalMs) {
+    if (pollTimer) window.clearInterval(pollTimer);
+    if (intervalMs) AppConfig.pollIntervalMs = intervalMs;
+    pollTimer = window.setInterval(refreshCalendarData, AppConfig.pollIntervalMs);
+}
+
 function startPolling() {
     refreshCalendarData();
-    setInterval(refreshCalendarData, AppConfig.pollIntervalMs);
+    restartPolling(AppConfig.pollIntervalMs);
     startHealthChecks();
 }

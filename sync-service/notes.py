@@ -558,6 +558,17 @@ def resolve_note_file(folder_path: str, relative_path: str) -> Path:
     return target
 
 
+def parse_markdown_headings(text: str) -> list[dict]:
+    headings: list[dict] = []
+    for index, line in enumerate(text.splitlines()):
+        match = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
+        if not match:
+            continue
+        level = len(match.group(1))
+        headings.append({"lineIndex": index, "level": level, "text": match.group(2).strip()})
+    return headings
+
+
 def parse_markdown_tasks(text: str) -> list[dict]:
     tasks: list[NoteTask] = []
     for index, line in enumerate(text.splitlines()):
@@ -585,6 +596,7 @@ def read_note_file(folder_path: str, relative_path: str) -> dict:
         "path": relative_path,
         "updatedAt": target.stat().st_mtime,
         "tasks": parse_markdown_tasks(text),
+        "headings": parse_markdown_headings(text),
     }
 
 

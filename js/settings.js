@@ -199,6 +199,24 @@ function buildSettingsPanelDom() {
     createSettingsField(syncSection, "APP_PASSWORD", "settings-app-password", "password", "Leave blank to keep existing password");
     createSettingsField(syncSection, "SYNC_INTERVAL_MINUTES", "settings-sync-interval", "number", "10");
 
+    const filterSection = document.createElement("div");
+    filterSection.className = "settings-section";
+    const filterTitle = document.createElement("div");
+    filterTitle.className = "settings-section-title";
+    filterTitle.textContent = "Visible Calendars";
+    filterSection.appendChild(filterTitle);
+
+    const filterHint = document.createElement("p");
+    filterHint.className = "settings-hint";
+    filterHint.textContent = "Leave all unchecked to show every calendar.";
+    filterSection.appendChild(filterHint);
+
+    const filterList = document.createElement("div");
+    filterList.id = "settings-calendar-filter";
+    filterList.className = "settings-calendar-filter";
+    filterSection.appendChild(filterList);
+    syncSection.appendChild(filterSection);
+
     const hint = document.createElement("p");
     hint.id = "settings-password-hint";
     hint.className = "settings-hint";
@@ -320,6 +338,77 @@ function readSettingsPayload() {
     return { appleId, appPassword, syncIntervalMinutes, notesEnabled, notesFolderPath };
 }
 
+function readCalendarFilterFromSettings() {
+    const container = document.getElementById("settings-calendar-filter");
+    if (!container) return [];
+    const ids = [];
+    container.querySelectorAll('input[type="checkbox"]:checked').forEach((input) => {
+        if (input.value) ids.push(input.value);
+    });
+    return ids;
+}
+
+function saveCalendarFilterSelection(ids) {
+    AppConfig.calendarFilter = ids;
+    try {
+        localStorage.setItem("calendarFilterIds", JSON.stringify(ids));
+    } catch {
+        /* ignore */
+    }
+    if (typeof filterEvents === "function" && typeof calendarData !== "undefined") {
+        calendarData.events = filterEvents(calendarData.events || []);
+    }
+    if (typeof renderCurrentView === "function") renderCurrentView();
+}
+
+function populateCalendarFilterSettings() {
+    const container = document.getElementById("settings-calendar-filter");
+    if (!container) return;
+
+    const calendars = typeof getCalendars === "function" ? getCalendars() : [];
+    const selected = new Set(AppConfig.calendarFilter || []);
+
+    if (!calendars.length) {
+        container.innerHTML = '<p class="settings-hint">Sync first to load calendars.</p>';
+        return;
+    }
+
+    container.innerHTML = "";
+    for (const cal of calendars) {
+        const label = document.createElement("label");
+        label.className = "settings-calendar-filter-item";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = cal.id;
+        input.checked = selected.size === 0 || selected.has(cal.id);
+
+        const swatch = document.createElement("span");
+        swatch.className = "calendar-swatch";
+        swatch.style.background = cal.color || "#3a588e";
+
+        const text = document.createElement("span");
+        text.textContent = cal.name || cal.id;
+
+        label.appendChild(input);
+        label.appendChild(swatch);
+        label.appendChild(text);
+        container.appendChild(label);
+    }
+}
+
+function loadCalendarFilterFromStorage() {
+    try {
+        const raw = localStorage.getItem("calendarFilterIds");
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) AppConfig.calendarFilter = parsed;
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
 async function submitSettings() {
     const saveBtn = document.getElementById("settings-save-btn");
     if (saveBtn?.disabled) return;
@@ -329,6 +418,11 @@ async function submitSettings() {
         showSettingsError("");
         const payload = readSettingsPayload();
         await saveSyncSettings(payload);
+        saveCalendarFilterSelection(readCalendarFilterFromSettings());
+        AppConfig.pollIntervalMs = payload.syncIntervalMinutes * 60 * 1000;
+        if (typeof restartPolling === "function") {
+            restartPolling(AppConfig.pollIntervalMs);
+        }
         setSettingsFieldValue("settings-app-password", "");
         updateSyncStatus("Settings saved");
         if (typeof refreshNotesSettings === "function") {
@@ -344,6 +438,7 @@ function openSettingsPanel() {
     const host = document.getElementById("settings-panel-host");
     if (!host || !buildSettingsPanelDom()) return;
     host.classList.remove("hidden");
+    populateCalendarFilterSettings();
     loadSettingsIntoForm();
 }
 
@@ -352,6 +447,7 @@ function closeSettingsPanel() {
 }
 
 function initSettingsPanel() {
+    loadCalendarFilterFromStorage();
     buildSettingsPanelDom();
     document.getElementById("settings-btn")?.addEventListener("click", (e) => {
         e.preventDefault();

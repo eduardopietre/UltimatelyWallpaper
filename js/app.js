@@ -14,7 +14,7 @@ function setCollapsed(collapsed, persist = true) {
     if (!card || !btn) return;
 
     card.classList.toggle("collapsed", collapsed);
-    btn.textContent = collapsed ? "+" : "−";
+    btn.textContent = collapsed ? "+" : "-";
     if (collapsed && typeof isEventFormVisible === "function" && isEventFormVisible()) {
         closeEventForm();
     }
@@ -98,6 +98,8 @@ function initApp() {
     if (typeof initSettingsPanel === "function") initSettingsPanel();
     if (typeof initWallpaperPicker === "function") initWallpaperPicker();
     if (typeof initEventForm === "function") initEventForm();
+    if (typeof initDayPanel === "function") initDayPanel();
+    if (typeof initEventDetail === "function") initEventDetail();
     if (typeof initNotesWindow === "function") initNotesWindow();
     setView(AppConfig.defaultView);
     updateClock();

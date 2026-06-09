@@ -14,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from cache import EventCache
-from caldav_client import create_event, run_sync
-from event_builder import CreateEventRequest, build_vevent_ical
+from caldav_client import create_event, delete_event, run_sync, update_event
+from event_builder import CreateEventRequest, DeleteEventRequest, UpdateEventRequest, build_vevent_ical
 from notes import (
     add_subtask,
     add_task,
@@ -260,7 +260,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -341,6 +341,41 @@ def calendars():
     return data.get("calendars", [])
 
 
+def _event_range_bounds(ev: dict) -> tuple[datetime, datetime]:
+    start = datetime.fromisoformat(ev["start"].replace("Z", "+00:00"))
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    else:
+        start = start.astimezone(timezone.utc)
+
+    end_raw = ev.get("end") or ev["start"]
+    end = datetime.fromisoformat(end_raw.replace("Z", "+00:00"))
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+    else:
+        end = end.astimezone(timezone.utc)
+
+    if ev.get("allDay") and end > start:
+        end = end - timedelta(days=1)
+        if end < start:
+            end = start
+
+    return start, end
+
+
+def _event_overlaps_range(ev: dict, from_date: datetime | None, to_date: datetime | None) -> bool:
+    start, end = _event_range_bounds(ev)
+    if from_date:
+        range_start = from_date.astimezone(timezone.utc)
+        if end < range_start:
+            return False
+    if to_date:
+        range_end = to_date.astimezone(timezone.utc)
+        if start > range_end:
+            return False
+    return True
+
+
 @app.get("/events")
 def events(
     from_date: datetime | None = Query(None, alias="from"),
@@ -354,14 +389,7 @@ def events(
     if from_date is None and to_date is None:
         return data
 
-    filtered = []
-    for ev in all_events:
-        start = datetime.fromisoformat(ev["start"].replace("Z", "+00:00"))
-        if from_date and start < from_date.astimezone(timezone.utc):
-            continue
-        if to_date and start > to_date.astimezone(timezone.utc):
-            continue
-        filtered.append(ev)
+    filtered = [ev for ev in all_events if _event_overlaps_range(ev, from_date, to_date)]
 
     return {
         "updatedAt": data.get("updatedAt"),
@@ -589,6 +617,78 @@ def sync_now():
         last_sync_error = str(exc)
         logger.error("Manual sync failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _resync_after_mutation() -> tuple[bool, str | None]:
+    global last_sync_error
+    try:
+        payload = run_sync(cache)
+        last_sync_error = None
+        return False, payload.updated_at
+    except Exception as exc:
+        last_sync_error = str(exc)
+        logger.warning("Mutation succeeded but cache sync failed: %s", exc)
+        return True, None
+
+
+@app.patch("/events")
+def update_calendar_event(body: UpdateEventRequest):
+    global last_sync_error
+    try:
+        ical_data = build_vevent_ical(
+            body,
+            uid=body.uid,
+            recurrence_id=body.recurrence_id if body.scope == "this" else None,
+        )
+        recurrence_id = body.recurrence_id or None
+        result = update_event(
+            body.calendar_id,
+            body.uid,
+            ical_data,
+            recurrence_id=recurrence_id,
+            scope=body.scope,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        last_sync_error = str(exc)
+        logger.error("Update event failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    sync_failed, updated_at = _resync_after_mutation()
+    return {
+        "status": "ok",
+        "event": result,
+        "updatedAt": updated_at,
+        "syncFailed": sync_failed,
+    }
+
+
+@app.delete("/events")
+def delete_calendar_event(body: DeleteEventRequest):
+    global last_sync_error
+    try:
+        recurrence_id = body.recurrence_id or None
+        result = delete_event(
+            body.calendar_id,
+            body.uid,
+            recurrence_id=recurrence_id,
+            scope=body.scope,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        last_sync_error = str(exc)
+        logger.error("Delete event failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    sync_failed, updated_at = _resync_after_mutation()
+    return {
+        "status": "ok",
+        "event": result,
+        "updatedAt": updated_at,
+        "syncFailed": sync_failed,
+    }
 
 
 @app.post("/events")

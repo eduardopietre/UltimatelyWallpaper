@@ -3,6 +3,7 @@ let notesState = {
     files: [],
     selectedPath: "",
     tasks: [],
+    headings: [],
     selectedLineIndex: null,
     loading: false,
     error: "",
@@ -441,7 +442,23 @@ function renderNotesTasks() {
 
     const tasks = getVisibleNotesTasks();
     if (!tasks.length) {
-        content.innerHTML = '<p class="empty-state">No visible tasks. Use + Task above.</p>';
+        const fileName = notesState.selectedPath.split("/").pop() || notesState.selectedPath;
+        let html = `<p class="notes-file-label">${escapeHtml(fileName)}</p>`;
+        html += '<p class="empty-state">No tasks in this file.</p>';
+        if (notesState.headings.length) {
+            html += '<div class="notes-headings"><p class="notes-headings-title">Sections</p>';
+            for (const heading of notesState.headings) {
+                html += `<button type="button" class="notes-heading-btn" data-line-index="${heading.lineIndex}">${escapeHtml(heading.text)}</button>`;
+            }
+            html += "</div>";
+        }
+        content.innerHTML = html;
+        content.querySelectorAll(".notes-heading-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const lineIndex = parseInt(btn.dataset.lineIndex, 10);
+                addNoteTaskAfterHeading(lineIndex);
+            });
+        });
         return;
     }
 
@@ -488,6 +505,37 @@ async function promptForTaskText(title, prompt, initialValue = "") {
     return value || null;
 }
 
+function countSubtasksForTask(task) {
+    const tasks = notesState.tasks;
+    const idx = tasks.findIndex((t) => t.lineIndex === task.lineIndex);
+    if (idx < 0) return 0;
+    let count = 0;
+    for (let i = idx + 1; i < tasks.length; i++) {
+        if (tasks[i].depth <= task.depth) break;
+        count++;
+    }
+    return count;
+}
+
+async function addNoteTaskAfterHeading(lineIndex) {
+    if (!notesState.selectedPath) return;
+    const heading = notesState.headings.find((h) => h.lineIndex === lineIndex);
+    const label = heading?.text || "section";
+    try {
+        const text = await promptForTaskText("New task", `Add a task under "${label}":`);
+        if (!text) return;
+        const data = await addNoteTask(notesState.selectedPath, text, lineIndex);
+        notesState.tasks = data.tasks || [];
+        notesState.headings = data.headings || notesState.headings;
+        const created = notesState.tasks.find((task) => task.text === text);
+        if (created) notesState.selectedLineIndex = created.lineIndex;
+        setNotesError("");
+        renderNotesTasks();
+    } catch (err) {
+        setNotesError(err.message || "Failed to add task");
+    }
+}
+
 async function addNoteTaskPrompt() {
     if (!notesState.selectedPath) {
         setNotesError("Select a note file first");
@@ -500,9 +548,15 @@ async function addNoteTaskPrompt() {
             `Add a task to ${fileLabel}:`,
         );
         if (!text) return;
-        const data = await addNoteTask(notesState.selectedPath, text);
+        const afterLineIndex = notesState.selectedLineIndex;
+        const data = await addNoteTask(
+            notesState.selectedPath,
+            text,
+            afterLineIndex !== null ? afterLineIndex : null
+        );
         notesState.tasks = data.tasks || [];
-        const created = notesState.tasks[notesState.tasks.length - 1];
+        notesState.headings = data.headings || notesState.headings;
+        const created = notesState.tasks.find((task) => task.text === text);
         if (created) notesState.selectedLineIndex = created.lineIndex;
         setNotesError("");
         renderNotesTasks();
@@ -580,11 +634,27 @@ async function addSelectedSubtaskPrompt() {
     await addSubtaskPrompt(task.lineIndex, task.text || "");
 }
 
+async function confirmDeleteSelectedNoteTask() {
+    const task = getSelectedNotesTask();
+    if (!task) return;
+
+    const subtasks = countSubtasksForTask(task);
+    let message = `Delete "${task.text || "(empty task)"}"?`;
+    if (subtasks > 0) {
+        message += `\n\nThis will also remove ${subtasks} subtask${subtasks === 1 ? "" : "s"}.`;
+    }
+    if (!window.confirm(message)) return;
+
+    clearNotesTaskSelection();
+    await applyNoteTaskAction(task.lineIndex, "delete", task.text || "");
+}
+
 async function applySelectedNoteTaskAction(action) {
     const task = getSelectedNotesTask();
     if (!task) return;
     if (action === "delete") {
-        clearNotesTaskSelection();
+        await confirmDeleteSelectedNoteTask();
+        return;
     }
     await applyNoteTaskAction(task.lineIndex, action, task.text || "");
 }
@@ -660,6 +730,7 @@ async function loadSelectedNoteFile() {
     try {
         const data = await fetchNoteFile(notesState.selectedPath);
         notesState.tasks = data.tasks || [];
+        notesState.headings = data.headings || [];
         if (
             notesState.selectedLineIndex !== null
             && !notesState.tasks.some((task) => task.lineIndex === notesState.selectedLineIndex)
@@ -917,7 +988,7 @@ function initNotesToolbar() {
     bind("notes-tool-indent", () => applySelectedNoteTaskAction("indent"));
     bind("notes-tool-edit", editSelectedNoteTaskPrompt);
     bind("notes-tool-subtask", addSelectedSubtaskPrompt);
-    bind("notes-tool-delete", () => applySelectedNoteTaskAction("delete"));
+    bind("notes-tool-delete", confirmDeleteSelectedNoteTask);
     updateNotesToolbar();
 }
 

@@ -17,11 +17,22 @@ def expand_calendar(cal: Calendar, start: datetime, end: datetime) -> list[dict[
     return list(recurring_of(cal).between(start, end))
 
 
+def _recurrence_id_iso(occurrence: dict[str, Any]) -> str:
+    recurrence_id = occurrence.get("RECURRENCE-ID")
+    if recurrence_id is None:
+        return ""
+    rid_dt = recurrence_id.dt
+    if isinstance(rid_dt, datetime):
+        return _to_utc_iso(rid_dt)
+    return datetime.combine(rid_dt, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+
+
 def normalize_occurrence(
     occurrence: dict[str, Any],
     calendar_id: str,
     calendar_name: str,
     index: int,
+    calendar_color: str = "#3a588e",
 ) -> EventInfo | None:
     summary = str(occurrence.get("SUMMARY", "") or "Untitled").strip()
     dtstart = occurrence.get("DTSTART")
@@ -46,6 +57,10 @@ def normalize_occurrence(
 
     uid = str(occurrence.get("UID", f"{calendar_id}-{index}"))
     location = str(occurrence.get("LOCATION", "") or "")
+    description = str(occurrence.get("DESCRIPTION", "") or "").strip()
+    url = str(occurrence.get("URL", "") or "").strip()
+    is_recurring = occurrence.get("RRULE") is not None or occurrence.get("RECURRENCE-ID") is not None
+    recurrence_id = _recurrence_id_iso(occurrence)
 
     return EventInfo(
         id=f"{calendar_id}:{uid}:{start_iso}",
@@ -55,5 +70,12 @@ def normalize_occurrence(
         all_day=all_day,
         location=location,
         calendar=calendar_name,
+        calendar_id=calendar_id,
+        uid=uid,
+        description=description,
+        url=url,
+        is_recurring=is_recurring,
+        recurrence_id=recurrence_id,
+        calendar_color=calendar_color,
     )
 

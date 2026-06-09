@@ -4,6 +4,145 @@
 	"file": "index.html",
 	"general": {
 		"properties": {
+			"syncPort": {
+				"index": 0,
+				"order": 100,
+				"text": "Sync service port",
+				"type": "textinput",
+				"value": "8765"
+			},
+			"weekStart": {
+				"index": 1,
+				"order": 101,
+				"text": "Week starts on",
+				"type": "combo",
+				"options": [
+					{ "label": "Sunday", "value": "0" },
+					{ "label": "Monday", "value": "1" }
+				],
+				"value": "0"
+			},
+			"clockFormat": {
+				"index": 2,
+				"order": 102,
+				"text": "24-hour clock",
+				"type": "bool",
+				"value": true
+			},
+			"viewMode": {
+				"index": 3,
+				"order": 103,
+				"text": "Default view",
+				"type": "combo",
+				"options": [
+					{ "label": "Month", "value": "1" },
+					{ "label": "Day", "value": "2" },
+					{ "label": "Upcoming", "value": "3" }
+				],
+				"value": "1"
+			},
+			"calendarColor": {
+				"index": 4,
+				"order": 104,
+				"text": "Calendar card color",
+				"type": "color",
+				"value": "101318"
+			},
+			"calendarAlpha": {
+				"index": 5,
+				"order": 105,
+				"text": "Calendar transparency",
+				"type": "slider",
+				"min": 0,
+				"max": 100,
+				"step": 1,
+				"value": 85
+			},
+			"accentColor": {
+				"index": 6,
+				"order": 106,
+				"text": "Accent color",
+				"type": "color",
+				"value": "3a588e"
+			},
+			"calendarFilter": {
+				"index": 7,
+				"order": 107,
+				"text": "Calendar filter (IDs, comma-separated)",
+				"type": "textinput",
+				"value": ""
+			},
+			"bgType": {
+				"index": 8,
+				"order": 108,
+				"text": "Background type",
+				"type": "combo",
+				"options": [
+					{ "label": "Solid color", "value": "1" },
+					{ "label": "Image", "value": "2" }
+				],
+				"value": "1"
+			},
+			"bgColor": {
+				"index": 9,
+				"order": 109,
+				"text": "Background color",
+				"type": "color",
+				"value": "1b1b1b"
+			},
+			"bgImage": {
+				"index": 10,
+				"order": 110,
+				"text": "Background image path",
+				"type": "textinput",
+				"value": ""
+			},
+			"bgBlur": {
+				"index": 11,
+				"order": 111,
+				"text": "Background blur",
+				"type": "slider",
+				"min": 0,
+				"max": 20,
+				"step": 1,
+				"value": 0
+			},
+			"bgBrightness": {
+				"index": 12,
+				"order": 112,
+				"text": "Background brightness",
+				"type": "slider",
+				"min": 0,
+				"max": 200,
+				"step": 1,
+				"value": 100
+			},
+			"startCollapsed": {
+				"index": 13,
+				"order": 113,
+				"text": "Start collapsed",
+				"type": "bool",
+				"value": false
+			},
+			"showOfflineBadge": {
+				"index": 14,
+				"order": 114,
+				"text": "Show offline badge",
+				"type": "bool",
+				"value": true
+			},
+			"fontChoice": {
+				"index": 15,
+				"order": 115,
+				"text": "Font",
+				"type": "combo",
+				"options": [
+					{ "label": "System UI", "value": "1" },
+					{ "label": "Segoe UI", "value": "2" },
+					{ "label": "Monospace", "value": "3" }
+				],
+				"value": "1"
+			}
 		},
 		"supportsaudioprocessing": false
 	},

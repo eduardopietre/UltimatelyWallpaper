@@ -3,18 +3,14 @@ let displayMonth = new Date();
 
 const WEEKDAY_LABELS_SUN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_LABELS_MON = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_VIEW_HOURS = { start: 6, end: 22 };
 
 function getWeekdayLabels() {
     return AppConfig.weekStart === 1 ? WEEKDAY_LABELS_MON : WEEKDAY_LABELS_SUN;
 }
 
 function formatTime(isoString, allDay) {
-    if (allDay) return "All day";
-    const d = new Date(isoString);
-    const opts = AppConfig.use24Hour
-        ? { hour: "2-digit", minute: "2-digit", hour12: false }
-        : { hour: "numeric", minute: "2-digit", hour12: true };
-    return d.toLocaleTimeString(undefined, opts);
+    return formatEventTime(isoString, allDay);
 }
 
 function formatDateHeader(date) {
@@ -40,22 +36,30 @@ function eventStartDate(event) {
 
 function eventsForDay(date) {
     return getEvents()
-        .filter((e) => sameDay(eventStartDate(e), date))
+        .filter((e) => eventOccursOnDay(e, date))
         .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
 function upcomingEvents(limitDays = 14) {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const now = startOfDay(new Date());
     const end = new Date(now);
     end.setDate(end.getDate() + limitDays);
+    end.setHours(23, 59, 59, 999);
 
     return getEvents()
-        .filter((e) => {
-            const start = eventStartDate(e);
-            return start >= now && start <= end;
-        })
+        .filter((e) => eventOccursInRange(e, now, end))
         .sort((a, b) => new Date(a.start) - new Date(b.start));
+}
+
+function getViewEmptyMessage() {
+    const state = typeof getCalendarLoadState === "function" ? getCalendarLoadState() : "ready";
+    if (state === "loading") return "Loading events...";
+    if (state === "no_credentials") return "Open Settings to connect iCloud";
+    if (state === "error") {
+        const err = typeof getCalendarLoadError === "function" ? getCalendarLoadError() : "";
+        return err || "Could not load events";
+    }
+    return null;
 }
 
 function isSameMonth(a, b) {
@@ -94,9 +98,43 @@ function attachDayCellHandlers(container) {
         cell.addEventListener("click", (e) => {
             e.stopPropagation();
             const ts = cell.dataset.date;
-            if (!ts || typeof openEventForm !== "function") return;
-            const startDate = new Date(parseInt(ts, 10));
-            openEventForm({ startDate });
+            if (!ts || typeof openDayPanel !== "function") return;
+            openDayPanel(new Date(parseInt(ts, 10)));
+        });
+    });
+
+    container.querySelectorAll(".event-dot, .event-more").forEach((el) => {
+        el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const cell = el.closest(".day-cell");
+            const ts = cell?.dataset.date;
+            if (!ts || typeof openDayPanel !== "function") return;
+            openDayPanel(new Date(parseInt(ts, 10)));
+        });
+    });
+}
+
+function attachEventItemHandlers(container) {
+    container.querySelectorAll(".event-item[data-event-id]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const id = el.dataset.eventId;
+            if (id && typeof openEventDetail === "function") {
+                openEventDetail(id);
+            }
+        });
+    });
+}
+
+function attachDaySlotHandlers(container) {
+    container.querySelectorAll(".day-time-slot").forEach((slot) => {
+        slot.addEventListener("click", () => {
+            const hour = parseInt(slot.dataset.hour, 10);
+            const today = new Date();
+            today.setHours(hour, 0, 0, 0);
+            if (typeof openEventForm === "function") {
+                openEventForm({ startDate: today });
+            }
         });
     });
 }
@@ -122,6 +160,12 @@ function renderMonthView() {
     const container = document.getElementById("view-month");
     if (!container) return;
 
+    const emptyMsg = getViewEmptyMessage();
+    if (emptyMsg && !getEvents().length) {
+        container.innerHTML = `<p class="empty-state">${escapeHtml(emptyMsg)}</p>`;
+        return;
+    }
+
     const y = displayMonth.getFullYear();
     const m = displayMonth.getMonth();
     const today = new Date();
@@ -145,7 +189,8 @@ function renderMonthView() {
         html += '<div class="day-events">';
         const shown = dayEvents.slice(0, 3);
         for (const ev of shown) {
-            html += `<span class="event-dot" title="${escapeHtml(ev.title)}">${escapeHtml(ev.title)}</span>`;
+            const color = getEventColor(ev);
+            html += `<span class="event-dot" style="background:${escapeHtml(color)}" title="${escapeHtml(ev.title)}">${escapeHtml(ev.title)}</span>`;
         }
         if (dayEvents.length > 3) {
             html += `<span class="event-more">+${dayEvents.length - 3} more</span>`;
@@ -161,29 +206,47 @@ function renderDayView() {
     const container = document.getElementById("view-day");
     if (!container) return;
 
+    const emptyMsg = getViewEmptyMessage();
     const today = new Date();
     const events = eventsForDay(today);
 
-    if (!events.length) {
-        container.innerHTML = '<p class="empty-state">No events today</p>';
-        return;
-    }
-
-    let html = '<div class="event-list">';
-    for (const ev of events) {
-        html += renderEventItem(ev);
+    let html = '<div class="day-view-layout">';
+    html += '<div class="day-time-slots">';
+    for (let h = DAY_VIEW_HOURS.start; h <= DAY_VIEW_HOURS.end; h++) {
+        const label = AppConfig.use24Hour
+            ? `${h < 10 ? "0" : ""}${h}:00`
+            : new Date(2000, 0, 1, h).toLocaleTimeString(undefined, { hour: "numeric", hour12: true });
+        html += `<button type="button" class="day-time-slot" data-hour="${h}"><span class="day-time-label">${escapeHtml(label)}</span></button>`;
     }
     html += "</div>";
+
+    html += '<div class="day-events-column">';
+    if (!events.length) {
+        const msg = emptyMsg || "No events today";
+        html += `<p class="empty-state">${escapeHtml(msg)}</p>`;
+    } else {
+        html += '<div class="event-list">';
+        for (const ev of events) {
+            html += renderEventItem(ev, { clickable: true });
+        }
+        html += "</div>";
+    }
+    html += "</div></div>";
+
     container.innerHTML = html;
+    attachEventItemHandlers(container);
+    attachDaySlotHandlers(container);
 }
 
 function renderUpcomingView() {
     const container = document.getElementById("view-upcoming");
     if (!container) return;
 
+    const emptyMsg = getViewEmptyMessage();
     const events = upcomingEvents();
     if (!events.length) {
-        container.innerHTML = '<p class="empty-state">No upcoming events</p>';
+        const msg = emptyMsg || "No upcoming events";
+        container.innerHTML = `<p class="empty-state">${escapeHtml(msg)}</p>`;
         return;
     }
 
@@ -197,17 +260,21 @@ function renderUpcomingView() {
             html += `<div class="upcoming-date-header">${formatDateHeader(d)}</div>`;
             lastDateKey = key;
         }
-        html += renderEventItem(ev);
+        html += renderEventItem(ev, { clickable: true });
     }
     container.innerHTML = html;
+    attachEventItemHandlers(container);
 }
 
-function renderEventItem(ev) {
+function renderEventItem(ev, options = {}) {
     const time = formatTime(ev.start, ev.allDay);
     const location = ev.location ? `<div class="event-meta">${escapeHtml(ev.location)}</div>` : "";
     const cal = ev.calendar ? `<div class="event-meta">${escapeHtml(ev.calendar)}</div>` : "";
+    const color = getEventColor(ev);
+    const clickable = options.clickable ? ' data-event-id="' + escapeHtml(ev.id) + '" role="button" tabindex="0"' : "";
+    const clickableClass = options.clickable ? " event-item-clickable" : "";
     return `
-        <div class="event-item">
+        <div class="event-item${clickableClass}"${clickable} style="border-left-color: ${escapeHtml(color)}">
             <div class="event-time">${time}</div>
             <div class="event-details">
                 <div class="event-title">${escapeHtml(ev.title)}</div>
@@ -226,6 +293,8 @@ function setView(view) {
     if (typeof isEventFormVisible === "function" && isEventFormVisible()) {
         closeEventForm();
     }
+    if (typeof closeDayPanel === "function") closeDayPanel();
+    if (typeof closeEventDetail === "function") closeEventDetail();
     currentView = view;
     syncViewDropdown(view);
     document.getElementById("view-month").classList.toggle("hidden", view !== "month");
