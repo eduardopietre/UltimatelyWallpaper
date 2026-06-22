@@ -1,0 +1,11 @@
+{
+  "AppVersion": "1.0.0",
+  "Title": "iCloud Calendar Wallpaper",
+  "Desc": "iCloud calendar with local sync service and markdown notes.",
+  "Author": "Eduardo",
+  "Contact": "",
+  "Type": "web",
+  "FileName": "index.html",
+  "Arguments": null,
+  "IsAbsolutePath": false
+}

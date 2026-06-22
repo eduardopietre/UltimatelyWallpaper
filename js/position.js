@@ -262,7 +262,7 @@ function initPosition() {
                 header.releasePointerCapture(pointerId);
             }
         } catch {
-            /* CEF may drop capture before pointerup */
+            /* Embedded webview may drop capture before pointerup */
         }
     }
 
@@ -285,7 +285,7 @@ function initPosition() {
         try {
             header.setPointerCapture(e.pointerId);
         } catch {
-            /* Pointer capture is best-effort in Wallpaper Engine CEF */
+            /* Pointer capture is best-effort in the Lively webview */
         }
         header.classList.add("dragging");
         card.classList.add("dragging");

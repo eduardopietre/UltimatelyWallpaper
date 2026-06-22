@@ -78,19 +78,20 @@ function openEventDetail(eventId) {
 async function confirmDeleteEvent(ev) {
     let scope = "series";
     if (ev.isRecurring) {
-        const choice = window.prompt(
-            "Delete recurring event:\nType 'this' for this occurrence only, or 'all' for the entire series.",
-            "this"
-        );
-        if (choice === null) return;
-        const normalized = choice.trim().toLowerCase();
-        if (normalized === "this") {
-            scope = "this";
-        } else if (normalized !== "all" && normalized !== "series") {
-            return;
-        }
+        const choice = await showRecurringDeleteChoice({
+            title: "Delete recurring event",
+            eventTitle: ev.title || ""
+        });
+        if (!choice) return;
+        scope = choice === "this" ? "this" : "series";
     } else {
-        const ok = window.confirm(`Delete "${ev.title}"?`);
+        const ok = await showConfirm({
+            title: "Delete event",
+            message: `Delete "${ev.title}"?`,
+            confirmLabel: "Delete",
+            cancelLabel: "Cancel",
+            danger: true
+        });
         if (!ok) return;
     }
 
@@ -107,7 +108,10 @@ async function confirmDeleteEvent(ev) {
             updateSyncStatus("Event deleted");
         }
     } catch (err) {
-        window.alert(err.message || "Failed to delete event");
+        await showAlert({
+            title: "Delete failed",
+            message: err.message || "Failed to delete event"
+        });
     }
 }
 

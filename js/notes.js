@@ -506,6 +506,9 @@ function renderNotesTasks() {
 }
 
 async function promptForTaskText(title, prompt, initialValue = "") {
+    if (typeof showTextPrompt === "function") {
+        return showTextPrompt({ title, prompt, initialValue });
+    }
     const data = await promptNoteText(title, prompt, initialValue);
     if (data.cancelled) return null;
     const value = (data.value || "").trim();
@@ -650,7 +653,16 @@ async function confirmDeleteSelectedNoteTask() {
     if (subtasks > 0) {
         message += `\n\nThis will also remove ${subtasks} subtask${subtasks === 1 ? "" : "s"}.`;
     }
-    if (!window.confirm(message)) return;
+    const confirmed = typeof showConfirm === "function"
+        ? await showConfirm({
+            title: "Delete task",
+            message,
+            confirmLabel: "Delete",
+            cancelLabel: "Cancel",
+            danger: true
+        })
+        : window.confirm(message);
+    if (!confirmed) return;
 
     clearNotesTaskSelection();
     await applyNoteTaskAction(task.lineIndex, "delete", task.text || "");

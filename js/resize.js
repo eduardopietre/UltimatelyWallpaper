@@ -112,7 +112,7 @@ function initResize() {
                 handle.releasePointerCapture(e.pointerId);
             }
         } catch {
-            /* CEF may drop capture before pointerup */
+            /* Embedded webview may drop capture before pointerup */
         }
     }
 
@@ -128,7 +128,7 @@ function initResize() {
         try {
             handle.setPointerCapture(e.pointerId);
         } catch {
-            /* Pointer capture is best-effort in Wallpaper Engine CEF */
+            /* Pointer capture is best-effort in the Lively webview */
         }
         card.classList.add("resizing");
         window.addEventListener("pointermove", moveResize);

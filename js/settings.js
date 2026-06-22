@@ -60,9 +60,9 @@ function createNotesFolderPicker(parent) {
     const pathInput = document.createElement("input");
     pathInput.id = "settings-notes-folder-path";
     pathInput.type = "text";
-    pathInput.readOnly = true;
-    pathInput.placeholder = "No folder selected";
-    pathInput.setAttribute("aria-readonly", "true");
+    pathInput.placeholder = "C:\\Users\\You\\Notes";
+    pathInput.autocomplete = "off";
+    pathInput.spellcheck = false;
 
     const browseBtn = document.createElement("button");
     browseBtn.id = "settings-notes-folder-browse";
@@ -87,7 +87,9 @@ function updateNotesFolderControls() {
     const pathInput = document.getElementById("settings-notes-folder-path");
     if (pathInput) {
         pathInput.classList.toggle("settings-folder-empty", !pathInput.value.trim());
-        pathInput.placeholder = enabled ? "No folder selected" : "Select a folder with Browse...";
+        pathInput.placeholder = enabled
+            ? "Type or paste a folder path, or use Browse..."
+            : "Enable notes to configure a folder";
     }
 }
 
@@ -241,7 +243,7 @@ function buildSettingsPanelDom() {
 
     const notesHint = document.createElement("p");
     notesHint.className = "settings-hint";
-    notesHint.textContent = "Choose a folder with markdown files. Subfolders are included.";
+    notesHint.textContent = "Type a folder path or use Browse. Markdown files in subfolders are included.";
     notesSection.appendChild(notesHint);
     notesPanel.appendChild(notesSection);
 

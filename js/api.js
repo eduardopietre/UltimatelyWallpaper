@@ -9,8 +9,12 @@ let calendarLoadState = "loading";
 let calendarLoadError = null;
 let hasLoadedOnce = false;
 
-function isWallpaperEngine() {
-    return typeof window.wallpaperPropertyListener !== "undefined";
+function shouldPreferXhrTransport() {
+    if (typeof isLivelyHostDetected === "function" && isLivelyHostDetected()) {
+        return true;
+    }
+    const protocol = window.location.protocol;
+    return protocol === "file:" || protocol === "null:";
 }
 
 function syncRequest(url, options = {}) {
@@ -19,7 +23,7 @@ function syncRequest(url, options = {}) {
     const body = options.body ?? null;
     const timeoutMs = options.timeoutMs || 10000;
 
-    if (!isWallpaperEngine() && typeof fetch === "function" && !options.preferXhr) {
+    if (!shouldPreferXhrTransport() && typeof fetch === "function" && !options.preferXhr) {
         return fetch(url, { method, headers, body, cache: "no-store" });
     }
 
@@ -88,10 +92,8 @@ function getCalendarLoadError() {
 
 function setOnlineStatus(online) {
     isOnline = online;
-    const badge = document.getElementById("offline-badge");
-    if (badge) {
-        const show = !online && AppConfig.showOfflineBadge;
-        badge.classList.toggle("hidden", !show);
+    if (typeof updateHealthIndicator === "function") {
+        updateHealthIndicator(syncHealthStatus, syncHealthError);
     }
 }
 
@@ -103,6 +105,9 @@ function updateSyncStatus(text) {
 function updateHealthIndicator(status, errorText) {
     const dot = document.getElementById("sync-health-dot");
     if (!dot) return;
+
+    const hideWhenOffline = status === "offline" && !AppConfig.showOfflineBadge;
+    dot.classList.toggle("hidden", hideWhenOffline);
     dot.classList.toggle("online", status === "ok");
     dot.classList.toggle("degraded", status === "degraded");
     dot.classList.toggle("offline", status === "offline");

@@ -352,14 +352,9 @@ function capitalizeFirstLetter(text) {
     return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
 
-function viewModeFromWeValue(value) {
-    if (value === "2") return "day";
-    if (value === "3") return "upcoming";
+function viewModeFromHostValue(value) {
+    const index = Number(value);
+    if (index === 1) return "day";
+    if (index === 2) return "upcoming";
     return "month";
-}
-
-function weValueFromViewMode(view) {
-    if (view === "day") return "2";
-    if (view === "upcoming") return "3";
-    return "1";
 }

@@ -1,0 +1,93 @@
+{
+  "syncPort": {
+    "type": "textbox",
+    "text": "Sync service port",
+    "help": "HTTP port for the local sync service (default 8765).",
+    "value": "8765"
+  },
+  "weekStart": {
+    "type": "dropdown",
+    "text": "Week starts on",
+    "value": 0,
+    "items": ["Sunday", "Monday"]
+  },
+  "clockFormat": {
+    "type": "checkbox",
+    "text": "24-hour clock",
+    "value": true
+  },
+  "viewMode": {
+    "type": "dropdown",
+    "text": "Default view",
+    "value": 0,
+    "items": ["Month", "Day", "Upcoming"]
+  },
+  "calendarColor": {
+    "type": "color",
+    "text": "Calendar card color",
+    "value": "#101318"
+  },
+  "calendarAlpha": {
+    "type": "slider",
+    "text": "Calendar transparency",
+    "min": 0,
+    "max": 100,
+    "step": 1,
+    "value": 85
+  },
+  "accentColor": {
+    "type": "color",
+    "text": "Accent color",
+    "value": "#3a588e"
+  },
+  "calendarFilter": {
+    "type": "textbox",
+    "text": "Calendar filter (IDs, comma-separated)",
+    "help": "Advanced filter. Prefer the in-app Settings panel for calendar checkboxes.",
+    "value": ""
+  },
+  "bgType": {
+    "type": "dropdown",
+    "text": "Background type",
+    "value": 0,
+    "items": ["Solid color", "Image"]
+  },
+  "bgColor": {
+    "type": "color",
+    "text": "Background color",
+    "value": "#1b1b1b"
+  },
+  "bgBlur": {
+    "type": "slider",
+    "text": "Background blur",
+    "min": 0,
+    "max": 20,
+    "step": 1,
+    "value": 0
+  },
+  "bgBrightness": {
+    "type": "slider",
+    "text": "Background brightness",
+    "min": 0,
+    "max": 200,
+    "step": 1,
+    "value": 100
+  },
+  "startCollapsed": {
+    "type": "checkbox",
+    "text": "Start collapsed",
+    "value": false
+  },
+  "showOfflineBadge": {
+    "type": "checkbox",
+    "text": "Show sync status when offline",
+    "help": "When enabled, the health dot stays visible while the sync service is offline.",
+    "value": true
+  },
+  "fontChoice": {
+    "type": "dropdown",
+    "text": "Font",
+    "value": 0,
+    "items": ["System UI", "Segoe UI", "Monospace"]
+  }
+}

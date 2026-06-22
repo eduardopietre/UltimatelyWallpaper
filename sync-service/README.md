@@ -98,6 +98,42 @@ Create a shortcut to `run_hidden.vbs` in:
 
 This starts the tray app without showing a terminal window.
 
+## Lively Wallpaper
+
+The web wallpaper targets **Lively Wallpaper** only.
+
+### Import
+
+1. Build a zip (optional):
+
+```powershell
+..\scripts\package-lively.ps1
+```
+
+2. In Lively, add the wallpaper folder (must contain `LivelyInfo.json`) or import the zip from `dist/`.
+3. Start the sync service with `.\run.ps1` before using the wallpaper.
+4. Open **Customize** in Lively to set the sync port and appearance options.
+5. Open the in-app **Settings** panel for iCloud credentials and notes folder.
+
+### Port alignment
+
+- Lively property `syncPort` must match `PORT` in `.env` (default `8765`).
+- Only one sync-service instance can bind the port.
+
+### Keyboard input
+
+In-app text modals (notes add/edit, delete confirmations) work with mouse by default. To type directly in the wallpaper, enable:
+
+`Lively settings -> Wallpaper -> Interaction -> Wallpaper Input -> Keyboard`
+
+### Notes folder
+
+Prefer typing or pasting the folder path in Settings. **Browse...** still uses a native Windows folder dialog via the sync service when available.
+
+### Packaging
+
+The Lively zip includes only `index.html`, `css/`, `js/`, `LivelyInfo.json`, and `LivelyProperties.json`. It excludes `.env`, `.venv/`, cache, logs, and credentials.
+
 ## Security
 
 - Credentials stay in `.env` on your machine only.
