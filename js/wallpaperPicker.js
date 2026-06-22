@@ -1,6 +1,6 @@
 function loadWallpaperPrefs() {
     try {
-        const raw = localStorage.getItem(AppConfig.wallpaperPrefsKey);
+        const raw = readPersistentStorage(AppConfig.wallpaperPrefsKey);
         if (!raw) return;
         const prefs = JSON.parse(raw);
         if (prefs.bgType) AppConfig.bgType = prefs.bgType;
@@ -11,9 +11,17 @@ function loadWallpaperPrefs() {
     }
 }
 
+function hasSavedWallpaperPrefs() {
+    try {
+        return Boolean(readPersistentStorage(AppConfig.wallpaperPrefsKey));
+    } catch {
+        return false;
+    }
+}
+
 function saveWallpaperPrefs() {
     try {
-        localStorage.setItem(
+        writePersistentStorage(
             AppConfig.wallpaperPrefsKey,
             JSON.stringify({
                 bgType: AppConfig.bgType,

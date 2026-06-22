@@ -25,12 +25,12 @@ function setCollapsed(collapsed, persist = true) {
         scheduleEnsureCardOnScreen();
     }
     if (persist) {
-        localStorage.setItem(AppConfig.collapsedKey, collapsed ? "1" : "0");
+        writePersistentStorage(AppConfig.collapsedKey, collapsed ? "1" : "0");
     }
 }
 
 function initCollapse() {
-    const stored = localStorage.getItem(AppConfig.collapsedKey);
+    const stored = readPersistentStorage(AppConfig.collapsedKey);
     const collapsed = stored !== null ? stored === "1" : AppConfig.startCollapsed;
     setCollapsed(collapsed, false);
 
@@ -125,7 +125,10 @@ function initGlobalErrorHandlers() {
     });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     initGlobalErrorHandlers();
+    if (typeof loadPersistentUiState === "function") {
+        await loadPersistentUiState();
+    }
     initApp();
 });

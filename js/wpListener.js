@@ -1,3 +1,5 @@
+let wallpaperEngineBackgroundInitialized = false;
+
 window.wallpaperPropertyListener = {
     applyUserProperties(properties) {
         if (properties.syncPort) {
@@ -45,7 +47,13 @@ window.wallpaperPropertyListener = {
             if (typeof setView === "function") setView(AppConfig.defaultView);
         }
 
-        setBackgroundFromProperties(properties);
+        const localWallpaperSelected = typeof hasSavedWallpaperPrefs === "function"
+            && hasSavedWallpaperPrefs();
+        const wallpaperEngineImageSelected = Boolean(properties.bgImage?.value);
+        if (wallpaperEngineBackgroundInitialized || wallpaperEngineImageSelected || !localWallpaperSelected) {
+            setBackgroundFromProperties(properties);
+        }
+        wallpaperEngineBackgroundInitialized = true;
         applyCalendarBackground();
 
         if (typeof renderCurrentView === "function") renderCurrentView();

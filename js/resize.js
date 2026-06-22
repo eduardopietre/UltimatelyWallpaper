@@ -8,7 +8,7 @@ const CARD_MIN_HEIGHT = CARD_MIN_WIDTH / CARD_ASPECT_RATIO;
 
 function loadSavedCardSize() {
     try {
-        const raw = localStorage.getItem(AppConfig.sizeKey);
+        const raw = readPersistentStorage(AppConfig.sizeKey);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (typeof parsed.width === "number" && typeof parsed.height === "number") {
@@ -40,7 +40,7 @@ function clampCardSize(width) {
 function saveCardSize(size) {
     savedCardSize = size;
     try {
-        localStorage.setItem(AppConfig.sizeKey, JSON.stringify(size));
+        writePersistentStorage(AppConfig.sizeKey, JSON.stringify(size));
     } catch {
         /* ignore */
     }

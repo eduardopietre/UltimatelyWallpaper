@@ -19,7 +19,9 @@ let notesState = {
 
 function readJsonStorage(key) {
     try {
-        const raw = localStorage.getItem(key);
+        const raw = typeof readPersistentStorage === "function"
+            ? readPersistentStorage(key)
+            : localStorage.getItem(key);
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -28,23 +30,28 @@ function readJsonStorage(key) {
 
 function writeJsonStorage(key, value) {
     try {
-        localStorage.setItem(key, JSON.stringify(value));
+        const serialized = JSON.stringify(value);
+        if (typeof writePersistentStorage === "function") {
+            writePersistentStorage(key, serialized);
+        } else {
+            localStorage.setItem(key, serialized);
+        }
     } catch {
         /* ignore */
     }
 }
 
 function loadNotesPrefs() {
-    notesState.collapsed = localStorage.getItem(AppConfig.notesCollapsedKey) === "1";
-    notesState.hideCompleted = localStorage.getItem(AppConfig.notesHideCompletedKey) === "1";
-    notesState.selectedPath = localStorage.getItem(AppConfig.notesSelectedFileKey) || "";
-    notesState.positionLocked = localStorage.getItem(AppConfig.notesPositionLockKey) === "1";
+    notesState.collapsed = readPersistentStorage(AppConfig.notesCollapsedKey) === "1";
+    notesState.hideCompleted = readPersistentStorage(AppConfig.notesHideCompletedKey) === "1";
+    notesState.selectedPath = readPersistentStorage(AppConfig.notesSelectedFileKey) || "";
+    notesState.positionLocked = readPersistentStorage(AppConfig.notesPositionLockKey) === "1";
 }
 
 function saveNotesPositionLocked(locked) {
     notesState.positionLocked = locked;
     try {
-        localStorage.setItem(AppConfig.notesPositionLockKey, locked ? "1" : "0");
+        writePersistentStorage(AppConfig.notesPositionLockKey, locked ? "1" : "0");
     } catch {
         /* ignore */
     }
@@ -67,7 +74,7 @@ function updateNotesPositionLockUi() {
 function saveNotesSelectedPath(path) {
     notesState.selectedPath = path || "";
     try {
-        localStorage.setItem(AppConfig.notesSelectedFileKey, notesState.selectedPath);
+        writePersistentStorage(AppConfig.notesSelectedFileKey, notesState.selectedPath);
     } catch {
         /* ignore */
     }
@@ -244,7 +251,7 @@ function setNotesCollapsed(collapsed, persist = true) {
     const btn = document.getElementById("notes-collapse-btn");
     if (btn) btn.textContent = collapsed ? "+" : "-";
     if (persist) {
-        localStorage.setItem(AppConfig.notesCollapsedKey, collapsed ? "1" : "0");
+        writePersistentStorage(AppConfig.notesCollapsedKey, collapsed ? "1" : "0");
     }
 }
 
@@ -253,7 +260,7 @@ function setNotesHideCompleted(hideCompleted, persist = true) {
     const input = document.getElementById("notes-hide-completed");
     if (input) input.checked = hideCompleted;
     if (persist) {
-        localStorage.setItem(AppConfig.notesHideCompletedKey, hideCompleted ? "1" : "0");
+        writePersistentStorage(AppConfig.notesHideCompletedKey, hideCompleted ? "1" : "0");
     }
     renderNotesTasks();
 }

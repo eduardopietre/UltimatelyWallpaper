@@ -8,12 +8,12 @@ let pendingDragPoint = null;
 
 function savePosition(xPct, yPct) {
     savedPosition = { xPct, yPct, anchor: "topleft" };
-    localStorage.setItem(AppConfig.positionKey, JSON.stringify(savedPosition));
+    writePersistentStorage(AppConfig.positionKey, JSON.stringify(savedPosition));
 }
 
 function loadSavedPosition() {
     try {
-        const raw = localStorage.getItem(AppConfig.positionKey);
+        const raw = readPersistentStorage(AppConfig.positionKey);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (typeof parsed.xPct === "number" && typeof parsed.yPct === "number") {
@@ -65,7 +65,7 @@ function migrateLegacyCenterPosition(card) {
 
 function loadPositionLocked() {
     try {
-        return localStorage.getItem(AppConfig.positionLockKey) === "1";
+        return readPersistentStorage(AppConfig.positionLockKey) === "1";
     } catch {
         return false;
     }
@@ -74,7 +74,7 @@ function loadPositionLocked() {
 function savePositionLocked(locked) {
     positionLocked = locked;
     try {
-        localStorage.setItem(AppConfig.positionLockKey, locked ? "1" : "0");
+        writePersistentStorage(AppConfig.positionLockKey, locked ? "1" : "0");
     } catch {
         /* ignore */
     }

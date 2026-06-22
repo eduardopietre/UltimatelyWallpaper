@@ -23,7 +23,12 @@ function applyBackground() {
 function setBackgroundFromProperties(properties) {
     if (properties.bgType) AppConfig.bgType = properties.bgType.value;
     if (properties.bgColor) AppConfig.bgColor = properties.bgColor.value;
-    if (properties.bgImage) AppConfig.bgImage = properties.bgImage.value || "";
+    if (properties.bgImage) {
+        const imagePath = properties.bgImage.value || "";
+        AppConfig.bgImage = imagePath && !/^(data:|file:|https?:)/i.test(imagePath)
+            ? `file:///${imagePath.replace(/\\/g, "/")}`
+            : imagePath;
+    }
     if (properties.bgBlur) AppConfig.bgBlur = properties.bgBlur.value;
     if (properties.bgBrightness) AppConfig.bgBrightness = properties.bgBrightness.value;
     applyBackground();

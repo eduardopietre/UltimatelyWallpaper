@@ -94,7 +94,8 @@
 				"index": 10,
 				"order": 110,
 				"text": "Background image path",
-				"type": "textinput",
+				"type": "file",
+				"fileType": "image",
 				"value": ""
 			},
 			"bgBlur": {
