@@ -133,6 +133,9 @@ html, body {
 }
 
 .collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 28px;
     height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -140,8 +143,9 @@ html, body {
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
+    padding: 0;
 }
 
 .collapse-btn:hover {
@@ -167,40 +171,58 @@ html, body {
     background: rgba(255, 255, 255, 0.12);
 }
 
-.position-lock-btn::before {
-    content: "";
-    position: absolute;
-    left: 8px;
-    top: 6px;
-    width: 10px;
-    height: 9px;
-    border: 2px solid currentColor;
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    opacity: 0.9;
+.line-md-icon {
+    width: 1em;
+    height: 1em;
+    display: block;
+    flex-shrink: 0;
 }
 
-.position-lock-btn::after {
-    content: "";
-    position: absolute;
-    left: 7px;
-    top: 13px;
-    width: 14px;
-    height: 10px;
-    border-radius: 3px;
-    background: currentColor;
-    opacity: 0.9;
+.icon-label {
+    margin-left: 6px;
 }
 
-.position-lock-btn.locked::before {
-    left: 7px;
+.header-action-btn-icon,
+.sync-btn-icon,
+.notes-tool-btn-icon,
+.event-panel-close,
+.app-modal-close,
+.event-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
 }
 
-.position-lock-btn:not(.locked)::before {
-    left: 11px;
-    top: 5px;
-    transform: rotate(28deg);
-    transform-origin: 2px 9px;
+.header-action-btn-icon {
+    min-width: 28px;
+    padding: 5px 8px;
+}
+
+.header-action-btn-icon.icon-only {
+    width: 28px;
+    min-width: 28px;
+    padding: 0;
+}
+
+.sync-btn-icon {
+    gap: 6px;
+}
+
+.notes-tool-btn-icon {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0;
+}
+
+.event-panel-close,
+.app-modal-close {
+    padding: 0;
+}
+
+.event-btn-icon {
+    gap: 6px;
 }
 
 .header-title {
@@ -658,6 +680,9 @@ html, body {
 }
 
 .month-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 28px;
     height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -667,6 +692,7 @@ html, body {
     cursor: pointer;
     font-size: 16px;
     line-height: 1;
+    padding: 0;
 }
 
 .month-nav-btn:hover {
@@ -696,7 +722,8 @@ html, body {
 
 .calendar-card.collapsed .month-nav,
 .calendar-card.collapsed .header-action-btn,
-.calendar-card.collapsed #add-event-btn {
+.calendar-card.collapsed #add-event-btn,
+.calendar-card.collapsed #settings-btn {
     display: none;
 }
 
@@ -1082,6 +1109,9 @@ html, body {
 }
 
 .settings-panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 28px;
     height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1091,6 +1121,7 @@ html, body {
     cursor: pointer;
     font-size: 16px;
     line-height: 1;
+    padding: 0;
 }
 
 .settings-panel-close:hover {
@@ -1303,6 +1334,9 @@ html, body {
 }
 
 .event-panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 28px;
     height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1310,8 +1344,9 @@ html, body {
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
+    padding: 0;
 }
 
 .event-panel-close:hover {
@@ -1522,13 +1557,19 @@ html, body {
 }
 
 .app-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
     border: none;
     background: transparent;
     color: inherit;
-    font-size: 1.4rem;
+    font-size: 16px;
     line-height: 1;
     cursor: pointer;
     opacity: 0.75;
+    padding: 0;
 }
 
 .app-modal-close:hover {

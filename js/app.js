@@ -14,7 +14,7 @@ function setCollapsed(collapsed, persist = true) {
     if (!card || !btn) return;
 
     card.classList.toggle("collapsed", collapsed);
-    btn.textContent = collapsed ? "+" : "-";
+    Icons.setCollapse(btn, collapsed);
     if (collapsed && typeof isEventFormVisible === "function" && isEventFormVisible()) {
         closeEventForm();
     }
@@ -27,6 +27,14 @@ function setCollapsed(collapsed, persist = true) {
     if (persist) {
         writePersistentStorage(AppConfig.collapsedKey, collapsed ? "1" : "0");
     }
+}
+
+function initHeaderIcons() {
+    Icons.set(document.getElementById("month-prev"), "chevron-left");
+    Icons.set(document.getElementById("month-next"), "chevron-right");
+    Icons.setLabel(document.getElementById("add-event-btn"), "plus", "Event");
+    Icons.set(document.getElementById("settings-btn"), "cog");
+    Icons.setLabel(document.getElementById("sync-btn"), "cloud-alt-upload", "Sync");
 }
 
 function initCollapse() {
@@ -135,6 +143,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (typeof markHostPersistenceReady === "function") {
         markHostPersistenceReady();
+    }
+    try {
+        await Icons.init();
+        initHeaderIcons();
+    } catch {
+        /* icons unavailable; buttons keep aria-labels */
     }
     initApp();
 });

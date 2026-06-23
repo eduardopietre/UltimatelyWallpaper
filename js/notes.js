@@ -65,6 +65,7 @@ function updateNotesPositionLockUi() {
     }
     if (btn) {
         btn.classList.toggle("locked", notesState.positionLocked);
+        Icons.setLock(btn, notesState.positionLocked);
         const label = notesState.positionLocked ? "Unlock position" : "Lock position";
         btn.title = label;
         btn.setAttribute("aria-label", label);
@@ -249,7 +250,7 @@ function setNotesCollapsed(collapsed, persist = true) {
     applyNotesSizeForState();
     scheduleEnsureNotesOnScreen();
     const btn = document.getElementById("notes-collapse-btn");
-    if (btn) btn.textContent = collapsed ? "+" : "-";
+    if (btn) Icons.setCollapse(btn, collapsed);
     if (persist) {
         writePersistentStorage(AppConfig.notesCollapsedKey, collapsed ? "1" : "0");
     }
@@ -990,6 +991,18 @@ function initNotesScroll() {
     content.addEventListener("wheel", handleWheel, { passive: false });
 }
 
+function initNotesIcons() {
+    Icons.set(document.getElementById("notes-tool-add"), "plus");
+    Icons.set(document.getElementById("notes-tool-open"), "external-link");
+    Icons.set(document.getElementById("notes-tool-up"), "arrow-up");
+    Icons.set(document.getElementById("notes-tool-down"), "arrow-down");
+    Icons.set(document.getElementById("notes-tool-outdent"), "list-indented-reversed");
+    Icons.set(document.getElementById("notes-tool-indent"), "list-indented");
+    Icons.set(document.getElementById("notes-tool-edit"), "pencil");
+    Icons.set(document.getElementById("notes-tool-subtask"), "close-small");
+    Icons.set(document.getElementById("notes-tool-delete"), "trash");
+}
+
 function initNotesToolbar() {
     const bind = (id, handler) => {
         document.getElementById(id)?.addEventListener("click", (e) => {
@@ -1033,6 +1046,7 @@ function initNotesWindow() {
         setNotesHideCompleted(e.target.checked);
     });
 
+    initNotesIcons();
     initNotesToolbar();
     initNotesPositionLock();
     initNotesScroll();

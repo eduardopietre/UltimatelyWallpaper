@@ -109,7 +109,7 @@ The web wallpaper targets **Lively Wallpaper** only.
 1. Build a zip (optional):
 
 ```powershell
-..\scripts\package-lively.ps1
+python ..\scripts\package_lively.py
 ```
 
 2. In Lively, add the wallpaper folder (must contain `LivelyInfo.json`) or import the zip from `dist/`.

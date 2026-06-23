@@ -44,7 +44,7 @@ function openEventDetail(eventId) {
     host.innerHTML = `
         <div class="event-panel-header">
             <h2 class="event-panel-title">${escapeHtml(ev.title)} ${recurringBadge}</h2>
-            <button type="button" class="event-panel-close" id="event-detail-close" aria-label="Close">&times;</button>
+            <button type="button" class="event-panel-close" id="event-detail-close" aria-label="Close">${Icons.svg("close-small")}</button>
         </div>
         <div class="event-detail-body">
             <div class="event-detail-calendar" style="border-left-color: ${escapeHtml(color)}">
@@ -56,8 +56,8 @@ function openEventDetail(eventId) {
             ${urlRow}
             ${description}
             <div class="event-detail-actions">
-                <button type="button" class="event-btn event-btn-secondary" id="event-detail-edit">Edit</button>
-                <button type="button" class="event-btn event-btn-danger" id="event-detail-delete">Delete</button>
+                <button type="button" class="event-btn event-btn-secondary event-btn-icon" id="event-detail-edit">${Icons.svg("pencil")}<span class="icon-label">Edit</span></button>
+                <button type="button" class="event-btn event-btn-danger event-btn-icon" id="event-detail-delete">${Icons.svg("trash")}<span class="icon-label">Delete</span></button>
             </div>
         </div>`;
 

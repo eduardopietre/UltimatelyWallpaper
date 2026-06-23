@@ -123,7 +123,7 @@ function buildSettingsPanelDom() {
     closeBtn.id = "settings-close-btn";
     closeBtn.type = "button";
     closeBtn.className = "settings-panel-close";
-    closeBtn.textContent = "x";
+    Icons.set(closeBtn, "close-small");
     closeBtn.addEventListener("click", closeSettingsPanel);
 
     header.appendChild(title);

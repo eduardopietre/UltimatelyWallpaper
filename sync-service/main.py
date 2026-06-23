@@ -15,6 +15,12 @@ from pydantic import BaseModel, Field
 
 from cache import EventCache
 from caldav_client import create_event, delete_event, run_sync, update_event
+from event_builder import (
+    CreateEventRequest,
+    DeleteEventRequest,
+    UpdateEventRequest,
+    build_vevent_ical,
+)
 from notes import (
     add_subtask,
     add_task,

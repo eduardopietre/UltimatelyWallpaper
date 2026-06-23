@@ -11,7 +11,7 @@ function ensureModalHost() {
         <div class="app-modal" role="dialog" aria-modal="true">
             <div class="app-modal-header">
                 <h2 id="app-modal-title" class="app-modal-title"></h2>
-                <button type="button" class="app-modal-close" data-modal-dismiss="true" aria-label="Close">&times;</button>
+                <button type="button" class="app-modal-close" data-modal-dismiss="true" aria-label="Close">${Icons.svg("close-small")}</button>
             </div>
             <div id="app-modal-body" class="app-modal-body"></div>
             <div id="app-modal-footer" class="app-modal-footer"></div>

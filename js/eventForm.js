@@ -306,7 +306,7 @@ function buildEventFormDom() {
     closeBtn.id = "event-close-btn";
     closeBtn.type = "button";
     closeBtn.className = "event-panel-close";
-    closeBtn.innerHTML = "&times;";
+    Icons.set(closeBtn, "close-small");
     closeBtn.addEventListener("click", closeEventForm);
 
     header.appendChild(title);

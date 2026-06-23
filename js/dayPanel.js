@@ -24,7 +24,7 @@ function openDayPanel(date) {
     const header = `
         <div class="event-panel-header">
             <h2 class="event-panel-title">${escapeHtml(formatDateHeader(dayPanelDate))}</h2>
-            <button type="button" class="event-panel-close" id="day-panel-close" aria-label="Close">&times;</button>
+            <button type="button" class="event-panel-close" id="day-panel-close" aria-label="Close">${Icons.svg("close-small")}</button>
         </div>`;
 
     let body = '<div class="day-panel-body">';
@@ -39,7 +39,7 @@ function openDayPanel(date) {
     }
     body += `
         <div class="day-panel-actions">
-            <button type="button" class="event-btn event-btn-primary" id="day-panel-add-event">+ Event</button>
+            <button type="button" class="event-btn event-btn-primary event-btn-icon" id="day-panel-add-event">${Icons.svg("plus")}<span class="icon-label">Event</span></button>
         </div>
     </div>`;
 

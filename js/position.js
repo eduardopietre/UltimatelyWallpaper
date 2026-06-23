@@ -159,6 +159,7 @@ function updatePositionLockUi() {
     }
     if (btn) {
         btn.classList.toggle("locked", positionLocked);
+        Icons.setLock(btn, positionLocked);
         const label = positionLocked ? "Unlock position" : "Lock position";
         btn.title = label;
         btn.setAttribute("aria-label", label);

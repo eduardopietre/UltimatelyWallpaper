@@ -12,7 +12,7 @@ css/styles.css           Styles
 js/                      Frontend modules
 sync-service/            Python FastAPI sync (not bundled in wallpaper zip)
   .venv/                 Local virtual environment (required)
-scripts/package-lively.ps1  Build Lively zip
+scripts/package_lively.py    Build Lively zip
 ```
 
 ## Quick start
@@ -44,7 +44,7 @@ Option A — import folder:
 Option B — zip package:
 
 ```powershell
-.\scripts\package-lively.ps1
+python scripts/package_lively.py
 ```
 
 Import `dist/icloud-calendar-wallpaper-lively.zip` into Lively.
