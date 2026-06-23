@@ -99,6 +99,23 @@ last_sync_error: str | None = None
 scheduler = BackgroundScheduler()
 
 
+def friendly_sync_error(exc: Exception) -> str:
+    if isinstance(exc, ValueError):
+        message = str(exc).strip()
+        if "APPLE_ID" in message or "APP_PASSWORD" in message:
+            return "Calendar credentials not configured"
+        return message
+
+    text = str(exc).lower()
+    if "timed out" in text or "timeout" in text:
+        return "Connection timed out"
+    if "unauthorized" in text or "forbidden" in text or "401" in text or "403" in text:
+        return "Authentication failed"
+    if "connection" in text or "connect" in text or "network" in text:
+        return "Could not reach calendar server"
+    return "Calendar sync failed"
+
+
 class SettingsRequest(BaseModel):
     appleId: str = Field(min_length=1)
     appPassword: str | None = None
@@ -240,7 +257,7 @@ def scheduled_sync() -> bool:
         last_sync_error = None
         return True
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.error("Sync failed: %s", exc)
         return False
 
@@ -641,9 +658,9 @@ def sync_now():
             "updatedAt": payload.updated_at,
         }
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.error("Manual sync failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=friendly_sync_error(exc)) from exc
 
 
 def _resync_after_mutation() -> tuple[bool, str | None]:
@@ -653,7 +670,7 @@ def _resync_after_mutation() -> tuple[bool, str | None]:
         last_sync_error = None
         return False, payload.updated_at
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.warning("Mutation succeeded but cache sync failed: %s", exc)
         return True, None
 
@@ -678,7 +695,7 @@ def update_calendar_event(body: UpdateEventRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.error("Update event failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -705,7 +722,7 @@ def delete_calendar_event(body: DeleteEventRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.error("Delete event failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -727,7 +744,7 @@ def create_calendar_event(body: CreateEventRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.error("Create event failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -739,7 +756,7 @@ def create_calendar_event(body: CreateEventRequest):
         updated_at = payload.updated_at
     except Exception as exc:
         sync_failed = True
-        last_sync_error = str(exc)
+        last_sync_error = friendly_sync_error(exc)
         logger.warning("Event created but cache sync failed: %s", exc)
 
     return {

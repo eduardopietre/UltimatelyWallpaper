@@ -428,11 +428,7 @@ async function refreshCalendarData() {
         const updated = calendarData.updatedAt
             ? new Date(calendarData.updatedAt).toLocaleString()
             : "just now";
-        let statusText = `Last sync: ${updated}`;
-        if (syncHealthStatus === "degraded" && syncHealthError) {
-            statusText += ` (${syncHealthError})`;
-        }
-        updateSyncStatus(statusText);
+        updateSyncStatus(`Last sync: ${updated}`);
         if (typeof renderCurrentView === "function") renderCurrentView();
         if (typeof populateCalendarSelect === "function") populateCalendarSelect();
         if (typeof populateCalendarFilterSettings === "function") populateCalendarFilterSettings();
