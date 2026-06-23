@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 
 from cache import EventCache
 from caldav_client import create_event, delete_event, run_sync, update_event
-from event_builder import CreateEventRequest, DeleteEventRequest, UpdateEventRequest, build_vevent_ical
 from notes import (
     add_subtask,
     add_task,
@@ -34,6 +33,7 @@ from notes import (
     set_task_checked,
     update_task_text,
 )
+from ui_state import merge_ui_state, read_ui_state
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_DIR = BASE_DIR / "logs"
@@ -148,6 +148,14 @@ class NoteTaskActionRequest(BaseModel):
 
 class OpenNoteFileRequest(BaseModel):
     path: str = Field(min_length=1)
+
+
+class UiStateUpdateRequest(BaseModel):
+    values: dict[str, str] = Field(default_factory=dict)
+
+
+def cache_directory() -> Path:
+    return Path(os.getenv("CACHE_DIR", "cache"))
 
 
 def get_sync_interval_minutes() -> int:
@@ -331,6 +339,19 @@ def update_settings(body: SettingsRequest):
         "notesEnabled": body.notesEnabled,
         "notesFolderPath": notes_folder_path,
     }
+
+
+@app.get("/ui-state")
+def get_ui_state():
+    return {"values": read_ui_state(cache_directory())}
+
+
+@app.post("/ui-state")
+def update_ui_state(body: UiStateUpdateRequest):
+    if not body.values:
+        return {"values": read_ui_state(cache_directory())}
+    merged = merge_ui_state(cache_directory(), body.values)
+    return {"values": merged}
 
 
 @app.get("/calendars")

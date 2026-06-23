@@ -69,6 +69,16 @@ function applyCardSizeForState(collapsed) {
     applyCardSize(clampCardSize(size.width));
 }
 
+function reloadSavedCardSize() {
+    savedCardSize = loadSavedCardSize();
+    const card = document.getElementById("calendar-card");
+    if (!card) return;
+    applyCardSizeForState(card.classList.contains("collapsed"));
+    if (typeof scheduleEnsureCardOnScreen === "function") {
+        scheduleEnsureCardOnScreen();
+    }
+}
+
 function initResize() {
     savedCardSize = loadSavedCardSize();
     const card = document.getElementById("calendar-card");

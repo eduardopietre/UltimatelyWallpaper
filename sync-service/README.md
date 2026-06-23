@@ -85,6 +85,8 @@ python main.py
 | POST | `/notes/pick-folder` | Open folder picker (Windows) |
 | POST | `/notes/prompt` | Open text prompt dialog (Windows) |
 | POST | `/notes/open-file` | Open a note file in the default app |
+| GET | `/ui-state` | Read persisted wallpaper UI layout and preferences |
+| POST | `/ui-state` | Merge wallpaper UI layout and preferences to disk |
 
 ## Logs
 

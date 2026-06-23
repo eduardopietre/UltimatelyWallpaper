@@ -1,5 +1,7 @@
 let hostBackgroundInitialized = false;
 let livelyHostDetected = false;
+let hostPersistenceReady = false;
+const pendingHostProperties = [];
 
 function normalizeHostColor(value) {
     if (value === null || value === undefined) return "";
@@ -61,6 +63,7 @@ function applyHostProperty(name, value) {
             AppConfig.fontFamily = fontFromHostValue(value);
             break;
         case "startCollapsed":
+            if (readPersistentStorage(AppConfig.collapsedKey) !== null) break;
             AppConfig.startCollapsed = Boolean(value);
             if (typeof setCollapsed === "function") {
                 setCollapsed(Boolean(value), false);
@@ -71,9 +74,11 @@ function applyHostProperty(name, value) {
             if (typeof setView === "function") setView(AppConfig.defaultView);
             break;
         case "bgType":
+            if (typeof hasSavedWallpaperPrefs === "function" && hasSavedWallpaperPrefs()) break;
             AppConfig.bgType = backgroundTypeFromHostValue(value);
             break;
         case "bgColor":
+            if (typeof hasSavedWallpaperPrefs === "function" && hasSavedWallpaperPrefs()) break;
             AppConfig.bgColor = normalizeHostColor(value);
             break;
         case "bgBlur":
@@ -91,23 +96,24 @@ function applyHostProperty(name, value) {
 function applyHostBackgroundProperties(values) {
     const localWallpaperSelected = typeof hasSavedWallpaperPrefs === "function"
         && hasSavedWallpaperPrefs();
-    const hostImageSelected = values.bgType === "2" && Boolean(AppConfig.bgImage);
 
-    if (hostBackgroundInitialized && !hostImageSelected && localWallpaperSelected) {
+    if (values.bgBlur !== undefined) AppConfig.bgBlur = values.bgBlur;
+    if (values.bgBrightness !== undefined) AppConfig.bgBrightness = values.bgBrightness;
+
+    if (localWallpaperSelected) {
+        if (typeof loadWallpaperPrefs === "function") loadWallpaperPrefs();
+        applyBackground();
+        hostBackgroundInitialized = true;
         return;
     }
 
     if (values.bgType !== undefined) AppConfig.bgType = values.bgType;
     if (values.bgColor !== undefined) AppConfig.bgColor = values.bgColor;
-    if (values.bgBlur !== undefined) AppConfig.bgBlur = values.bgBlur;
-    if (values.bgBrightness !== undefined) AppConfig.bgBrightness = values.bgBrightness;
     applyBackground();
     hostBackgroundInitialized = true;
 }
 
-function livelyPropertyListener(name, value) {
-    livelyHostDetected = true;
-
+function applyLivelyPropertyChange(name, value) {
     const backgroundKeys = new Set(["bgType", "bgColor", "bgBlur", "bgBrightness"]);
     const backgroundPatch = {};
 
@@ -125,6 +131,23 @@ function livelyPropertyListener(name, value) {
 
     if (typeof renderCurrentView === "function") renderCurrentView();
     if (typeof updateClock === "function") updateClock();
+}
+
+function livelyPropertyListener(name, value) {
+    livelyHostDetected = true;
+    if (!hostPersistenceReady) {
+        pendingHostProperties.push([name, value]);
+        return;
+    }
+    applyLivelyPropertyChange(name, value);
+}
+
+function markHostPersistenceReady() {
+    hostPersistenceReady = true;
+    const queued = pendingHostProperties.splice(0, pendingHostProperties.length);
+    for (const [name, value] of queued) {
+        applyLivelyPropertyChange(name, value);
+    }
 }
 
 window.livelyPropertyListener = livelyPropertyListener;

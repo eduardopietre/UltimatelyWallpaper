@@ -180,6 +180,13 @@ function applyCardPosition() {
     scheduleEnsureCardOnScreen();
 }
 
+function reloadSavedPosition() {
+    savedPosition = loadSavedPosition();
+    positionLocked = loadPositionLocked();
+    applyCardPosition();
+    updatePositionLockUi();
+}
+
 function initPosition() {
     savedPosition = loadSavedPosition();
     positionLocked = loadPositionLocked();

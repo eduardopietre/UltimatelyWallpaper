@@ -66,10 +66,10 @@ Import `dist/icloud-calendar-wallpaper-lively.zip` into Lively.
 | Setting | Stored in |
 |---------|-----------|
 | Colors, font, view, background host prefs | LivelyProperties (per monitor/layout) |
-| Card/notes position, size, collapse | IndexedDB + localStorage |
+| Card/notes position, size, collapse | IndexedDB + localStorage + sync-service `cache/ui-state.json` |
 | iCloud credentials, sync interval, notes folder | sync-service `.env` via Settings panel |
 | Calendar filter checkboxes | localStorage via Settings panel |
-| In-app wallpaper image | IndexedDB (data URL) |
+| In-app wallpaper image | IndexedDB (data URL) + sync-service `cache/ui-state.json` |
 
 ## Security
 
@@ -80,5 +80,7 @@ Import `dist/icloud-calendar-wallpaper-lively.zip` into Lively.
 ## Development
 
 Open `index.html` in a browser for basic UI testing. Full calendar/notes behavior requires the sync service running locally.
+
+Gadget positions and in-app wallpaper preferences are saved to `sync-service/cache/ui-state.json` because Lively's WebView2 clears browser storage on exit unless disk cache is enabled. Keep the sync service running (or autostart it) for layout persistence across reboots.
 
 See [sync-service/README.md](sync-service/README.md) for API endpoints and autostart setup.

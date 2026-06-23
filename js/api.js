@@ -141,6 +141,9 @@ async function checkSyncHealth(retries = 1) {
             syncHealthError = data.error || null;
             updateHealthIndicator(syncHealthStatus, syncHealthError);
             setOnlineStatus(true);
+            if (typeof retryUiStateFromServiceIfNeeded === "function") {
+                retryUiStateFromServiceIfNeeded();
+            }
             return true;
         } catch {
             if (attempt < retries - 1) {

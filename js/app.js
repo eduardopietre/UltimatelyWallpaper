@@ -127,8 +127,14 @@ function initGlobalErrorHandlers() {
 
 document.addEventListener("DOMContentLoaded", async () => {
     initGlobalErrorHandlers();
+    if (typeof initUiStatePersistenceHooks === "function") {
+        initUiStatePersistenceHooks();
+    }
     if (typeof loadPersistentUiState === "function") {
         await loadPersistentUiState();
+    }
+    if (typeof markHostPersistenceReady === "function") {
+        markHostPersistenceReady();
     }
     initApp();
 });

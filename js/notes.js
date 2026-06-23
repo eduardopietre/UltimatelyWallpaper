@@ -1011,6 +1011,15 @@ function initNotesToolbar() {
     updateNotesToolbar();
 }
 
+function reloadNotesLayout() {
+    loadNotesPrefs();
+    setNotesCollapsed(notesState.collapsed, false);
+    applyNotesPosition();
+    applyNotesSize();
+    updateNotesPositionLockUi();
+    applyNotesVisibility();
+}
+
 function initNotesWindow() {
     loadNotesPrefs();
     setNotesCollapsed(notesState.collapsed, false);
