@@ -135,6 +135,9 @@ function initGlobalErrorHandlers() {
 
 document.addEventListener("DOMContentLoaded", async () => {
     initGlobalErrorHandlers();
+    if (typeof initTooltipFocusGuard === "function") {
+        initTooltipFocusGuard();
+    }
     if (typeof initUiStatePersistenceHooks === "function") {
         initUiStatePersistenceHooks();
     }
