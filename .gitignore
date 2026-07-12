@@ -7,6 +7,11 @@ sync-service/.env
 sync-service/cache/*
 sync-service/__pycache__/*
 sync-service/config.toml
+sync-service-rs/.env
+sync-service-rs/logs/*
+sync-service-rs/cache/*
+sync-service-rs/target
+sync-service-rs/target/*
 .venv/*
 .env
 config.toml
