@@ -1,4 +1,4 @@
-# iCloud Calendar Wallpaper
+# Ultimately Wallpaper
 
 Web wallpaper for **Lively Wallpaper** with a local Python sync service for iCloud CalDAV, event CRUD, and markdown notes.
 
@@ -47,7 +47,7 @@ Option B — zip package:
 python scripts/package_lively.py
 ```
 
-Import `dist/icloud-calendar-wallpaper-lively.zip` into Lively.
+Import `dist/ultimately-wallpaper-lively.zip` into Lively.
 
 ### 3. Lively settings
 

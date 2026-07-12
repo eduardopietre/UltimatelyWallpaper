@@ -209,9 +209,9 @@ class SyncTrayApp:
             pystray.MenuItem("Exit", self.exit_app),
         )
         self.icon = pystray.Icon(
-            "icloud-calendar-sync",
+            "ultimately-wallpaper",
             create_icon_image(),
-            "iCloud Calendar Sync",
+            "Ultimately Wallpaper",
             menu,
         )
 

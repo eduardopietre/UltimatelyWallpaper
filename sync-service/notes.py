@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-APP_TITLE = "iCloud Calendar Sync"
+APP_TITLE = "Ultimately Wallpaper"
 CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 TASK_RE = re.compile(r"^([ \t]*)-\s+\[([ xX])\]\s?(.*)$")
 

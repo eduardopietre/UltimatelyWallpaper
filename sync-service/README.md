@@ -1,6 +1,6 @@
-# iCloud Calendar Sync Service
+# Ultimately Wallpaper Sync Service
 
-Local sync service for the iCloud Calendar Wallpaper. Fetches events from iCloud via CalDAV and exposes a REST API for the wallpaper.
+Local sync service for Ultimately Wallpaper. Fetches events from iCloud via CalDAV and exposes a REST API for the wallpaper.
 
 All Python dependencies run inside a **virtual environment** (`.venv`). Do not install packages globally.
 
@@ -39,7 +39,7 @@ APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
 Or double-click `run.bat`. The launcher starts the sync service as a background tray app. The API listens on `http://127.0.0.1:8765` by default.
 
-The tray icon is named **iCloud Calendar Sync**. Right-click it to:
+The tray icon is named **Ultimately Wallpaper**. Right-click it to:
 
 - **Open Directory**
 - **Exit**

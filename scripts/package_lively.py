@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "dist"
-ZIP_PATH = OUT_DIR / "icloud-calendar-wallpaper-lively.zip"
+ZIP_PATH = OUT_DIR / "ultimately-wallpaper-lively.zip"
 
 INCLUDE = (
     "index.html",

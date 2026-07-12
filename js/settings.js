@@ -194,7 +194,7 @@ function buildSettingsPanelDom() {
     syncSection.className = "settings-section";
     const syncTitle = document.createElement("div");
     syncTitle.className = "settings-section-title";
-    syncTitle.textContent = "iCloud Sync";
+    syncTitle.textContent = "Calendar Sync";
     syncSection.appendChild(syncTitle);
 
     createSettingsField(syncSection, "APPLE_ID", "settings-apple-id", "text", "your_apple_id@icloud.com");

@@ -148,7 +148,7 @@ def build_vevent_ical(
     recurrence_id: str | None = None,
 ) -> str:
     cal = Calendar()
-    cal.add("prodid", "-//calendar-wallpaper//sync-service//EN")
+    cal.add("prodid", "-//ultimately-wallpaper//sync-service//EN")
     cal.add("version", "2.0")
 
     event = Event()

@@ -296,7 +296,7 @@ async def lifespan(_app: FastAPI):
     logger.info("Sync service shutdown completed")
 
 
-app = FastAPI(title="iCloud Calendar Sync", lifespan=lifespan)
+app = FastAPI(title="Ultimately Wallpaper", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
