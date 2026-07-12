@@ -1,5 +1,6 @@
 let notesState = {
     enabled: false,
+    visible: false,
     files: [],
     selectedPath: "",
     tasks: [],
@@ -10,12 +11,10 @@ let notesState = {
     collapsed: false,
     hideCompleted: false,
     positionLocked: false,
-    pollTimer: null,
-    dragging: false,
-    resizing: false,
-    dragStart: null,
-    resizeStart: null
+    pollTimer: null
 };
+
+let notesDraggable = null;
 
 function readJsonStorage(key) {
     try {
@@ -84,8 +83,15 @@ function saveNotesSelectedPath(path) {
 function applyNotesVisibility() {
     const card = document.getElementById("notes-card");
     if (!card) return;
-    card.classList.toggle("hidden", !notesState.enabled);
+    const shouldShow = notesState.enabled && notesState.visible;
+    card.classList.toggle("hidden", !shouldShow);
     card.classList.toggle("collapsed", notesState.collapsed);
+}
+
+function setNotesVisible(visible) {
+    notesState.visible = !!visible;
+    applyNotesVisibility();
+    if (visible) scheduleEnsureNotesOnScreen();
 }
 
 function loadNotesPosition() {
@@ -189,7 +195,7 @@ function ensureNotesOnScreen() {
         return;
     }
 
-    const snap = !notesState.dragging && !notesState.resizing;
+    const snap = !card.classList.contains("dragging") && !card.classList.contains("resizing");
     if (snap) {
         card.classList.add("position-snap");
     }
@@ -839,57 +845,16 @@ function initNotesDrag() {
     const header = document.getElementById("notes-header");
     if (!card || !header) return;
 
-    function moveDrag(e) {
-        if (!notesState.dragging || !notesState.dragStart) return;
-        const nextX = notesState.dragStart.anchorX + e.clientX - notesState.dragStart.pointerX;
-        const nextY = notesState.dragStart.anchorY + e.clientY - notesState.dragStart.pointerY;
-        const clamped = clampNotesTopLeft(
-            nextX,
-            nextY,
-            notesState.dragStart.width,
-            notesState.dragStart.height
-        );
-        const pct = notesPxToPct(clamped.x, clamped.y);
-        card.style.setProperty("--notes-x", `${pct.xPct}%`);
-        card.style.setProperty("--notes-y", `${pct.yPct}%`);
-        e.preventDefault();
-    }
-
-    function endDrag() {
-        if (!notesState.dragging) return;
-        notesState.dragging = false;
-        notesState.dragStart = null;
-        card.classList.remove("dragging");
-        header.classList.remove("dragging");
-        const xPct = parseFloat(card.style.getPropertyValue("--notes-x")) || 72;
-        const yPct = parseFloat(card.style.getPropertyValue("--notes-y")) || 8;
-        saveNotesPosition(xPct, yPct);
-        window.removeEventListener("pointermove", moveDrag);
-        window.removeEventListener("pointerup", endDrag);
-        window.removeEventListener("pointercancel", endDrag);
-        window.removeEventListener("blur", endDrag);
-    }
-
-    header.addEventListener("pointerdown", (e) => {
-        if (notesState.positionLocked) return;
-        if (e.target.closest("button, input, label, .custom-select, .notes-toolbar, .notes-task")) return;
-        const rect = card.getBoundingClientRect();
-        notesState.dragging = true;
-        notesState.dragStart = {
-            pointerX: e.clientX,
-            pointerY: e.clientY,
-            anchorX: rect.left,
-            anchorY: rect.top,
-            width: rect.width,
-            height: rect.height
-        };
-        card.classList.add("dragging");
-        header.classList.add("dragging");
-        window.addEventListener("pointermove", moveDrag);
-        window.addEventListener("pointerup", endDrag);
-        window.addEventListener("pointercancel", endDrag);
-        window.addEventListener("blur", endDrag);
-        e.preventDefault();
+    notesDraggable = makeDraggable({
+        el: card,
+        handle: header,
+        xVar: "--notes-x",
+        yVar: "--notes-y",
+        save: saveNotesPosition,
+        isLocked: () => notesState.positionLocked,
+        skipSelector: "button, input, label, .custom-select, .notes-toolbar, .notes-task",
+        defaultXPct: 72,
+        defaultYPct: 8
     });
 }
 
@@ -898,52 +863,17 @@ function initNotesResize() {
     const handle = document.getElementById("notes-resize-handle");
     if (!card || !handle) return;
 
-    function moveResize(e) {
-        if (!notesState.resizing || !notesState.resizeStart) return;
-        const size = clampNotesSize({
-            width: notesState.resizeStart.width + e.clientX - notesState.resizeStart.x,
-            height: notesState.resizeStart.height + e.clientY - notesState.resizeStart.y
-        });
-        card.style.setProperty("--notes-width", `${size.width}px`);
-        card.style.setProperty("--notes-height", `${size.height}px`);
-        if (!notesState.collapsed) {
-            ensureNotesOnScreen();
+    makeResizable({
+        el: card,
+        handle,
+        wVar: "--notes-width",
+        hVar: "--notes-height",
+        clamp: (width, height) => clampNotesSize({ width, height }),
+        save: (size) => writeJsonStorage(AppConfig.notesSizeKey, size),
+        disabled: () => notesState.collapsed,
+        onResize: () => {
+            if (!notesState.collapsed) ensureNotesOnScreen();
         }
-    }
-
-    function endResize() {
-        if (!notesState.resizing) return;
-        notesState.resizing = false;
-        notesState.resizeStart = null;
-        card.classList.remove("resizing");
-        writeJsonStorage(AppConfig.notesSizeKey, {
-            width: card.getBoundingClientRect().width,
-            height: card.getBoundingClientRect().height
-        });
-        ensureNotesOnScreen();
-        window.removeEventListener("pointermove", moveResize);
-        window.removeEventListener("pointerup", endResize);
-        window.removeEventListener("pointercancel", endResize);
-        window.removeEventListener("blur", endResize);
-    }
-
-    handle.addEventListener("pointerdown", (e) => {
-        if (notesState.collapsed) return;
-        const rect = card.getBoundingClientRect();
-        notesState.resizing = true;
-        notesState.resizeStart = {
-            x: e.clientX,
-            y: e.clientY,
-            width: rect.width,
-            height: rect.height
-        };
-        card.classList.add("resizing");
-        window.addEventListener("pointermove", moveResize);
-        window.addEventListener("pointerup", endResize);
-        window.addEventListener("pointercancel", endResize);
-        window.addEventListener("blur", endResize);
-        e.preventDefault();
-        e.stopPropagation();
     });
 
     window.addEventListener("resize", () => {
@@ -956,18 +886,12 @@ function initNotesPositionLock() {
     const btn = document.getElementById("notes-position-lock-btn");
     if (!btn) return;
 
-    updateNotesPositionLockUi();
-    btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (notesState.dragging) {
-            notesState.dragging = false;
-            notesState.dragStart = null;
-            document.getElementById("notes-card")?.classList.remove("dragging");
-            document.getElementById("notes-header")?.classList.remove("dragging");
-        }
-        saveNotesPositionLocked(!notesState.positionLocked);
-        updateNotesPositionLockUi();
+    makePositionLock({
+        el: document.getElementById("notes-card"),
+        btn,
+        get: () => notesState.positionLocked,
+        set: saveNotesPositionLocked,
+        onToggle: () => notesDraggable?.cancel()
     });
 }
 
@@ -1053,6 +977,15 @@ function initNotesWindow() {
     initNotesDropdown();
     initNotesDrag();
     initNotesResize();
+
+    if (typeof Gadgets !== "undefined") {
+        Gadgets.register({
+            id: "notes",
+            defaultVisible: false,
+            apply: (visible) => setNotesVisible(visible),
+            isVisible: () => notesState.visible
+        });
+    }
 
     refreshNotesSettings();
     if (notesState.pollTimer) window.clearInterval(notesState.pollTimer);

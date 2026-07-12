@@ -109,6 +109,7 @@ function initApp() {
     if (typeof initDayPanel === "function") initDayPanel();
     if (typeof initEventDetail === "function") initEventDetail();
     if (typeof initNotesWindow === "function") initNotesWindow();
+    initGadgets();
     setView(AppConfig.defaultView);
     updateClock();
     setInterval(updateClock, AppConfig.clockIntervalMs);
@@ -116,6 +117,28 @@ function initApp() {
         scheduleEnsureCardOnScreen();
     }
     startPolling();
+}
+
+function initGadgets() {
+    if (typeof Gadgets === "undefined") return;
+
+    Gadgets.register({
+        id: "calendar",
+        el: () => document.getElementById("calendar-card"),
+        defaultVisible: false,
+        onShow: () => {
+            if (typeof scheduleEnsureCardOnScreen === "function") scheduleEnsureCardOnScreen();
+        }
+    });
+
+    if (typeof initClockGadget === "function") initClockGadget();
+    if (typeof initPomodoroGadget === "function") initPomodoroGadget();
+    if (typeof initLinksGadget === "function") initLinksGadget();
+    if (typeof initMediaGadget === "function") initMediaGadget();
+    if (typeof initMonitorGadget === "function") initMonitorGadget();
+    if (typeof initLauncher === "function") initLauncher();
+
+    Gadgets.applyVisibilityFromState();
 }
 
 function initGlobalErrorHandlers() {

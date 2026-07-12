@@ -15,6 +15,20 @@ ALLOWED_UI_STATE_KEYS = frozenset(
         "notesSelectedFile",
         "notesSize",
         "wallpaperPrefs",
+        "gadgetVisibility",
+        "launcherPosition",
+        "clockPosition",
+        "clockSize",
+        "clockPrefs",
+        "pomodoroPosition",
+        "pomodoroPrefs",
+        "linksPosition",
+        "linksSize",
+        "linksData",
+        "mediaPosition",
+        "mediaSize",
+        "monitorPosition",
+        "monitorSize",
     }
 )
 

@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import threading
+import webbrowser
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from logging.handlers import TimedRotatingFileHandler
@@ -21,6 +22,8 @@ from event_builder import (
     UpdateEventRequest,
     build_vevent_ical,
 )
+from now_playing import get_now_playing, media_control
+from system_monitor import get_system_metrics
 from notes import (
     add_subtask,
     add_task,
@@ -171,6 +174,14 @@ class NoteTaskActionRequest(BaseModel):
 
 class OpenNoteFileRequest(BaseModel):
     path: str = Field(min_length=1)
+
+
+class OpenUrlRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+
+
+class MediaControlRequest(BaseModel):
+    action: str = Field(pattern="^(play_pause|next|previous)$")
 
 
 class UiStateUpdateRequest(BaseModel):
@@ -600,6 +611,36 @@ def open_note_file_endpoint(body: OpenNoteFileRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"status": "ok"}
+
+
+@app.post("/open-url")
+def open_url_endpoint(body: OpenUrlRequest):
+    url = body.url.strip()
+    if not url.lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Only http/https URLs are allowed")
+    try:
+        opened = webbrowser.open(url)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    if not opened:
+        raise HTTPException(status_code=500, detail="No browser available to open the URL")
+    return {"status": "ok"}
+
+
+@app.get("/system/metrics")
+def system_metrics_endpoint():
+    return get_system_metrics()
+
+
+@app.get("/media/now-playing")
+def now_playing_endpoint():
+    return get_now_playing()
+
+
+@app.post("/media/control")
+def media_control_endpoint(body: MediaControlRequest):
+    ok = media_control(body.action)
+    return {"status": "ok" if ok else "failed", "ok": ok}
 
 
 @app.get("/notes/files")

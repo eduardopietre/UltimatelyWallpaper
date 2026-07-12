@@ -9,7 +9,21 @@ const PERSISTED_UI_KEYS = new Set([
     "notesPositionLocked",
     "notesSelectedFile",
     "notesSize",
-    "wallpaperPrefs"
+    "wallpaperPrefs",
+    "gadgetVisibility",
+    "launcherPosition",
+    "clockPosition",
+    "clockSize",
+    "clockPrefs",
+    "pomodoroPosition",
+    "pomodoroPrefs",
+    "linksPosition",
+    "linksSize",
+    "linksData",
+    "mediaPosition",
+    "mediaSize",
+    "monitorPosition",
+    "monitorSize"
 ]);
 
 const UI_STATE_DB_NAME = "calendar-wallpaper";

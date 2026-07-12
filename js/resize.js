@@ -1,6 +1,4 @@
 let savedCardSize = null;
-let isResizingCard = false;
-let resizeStart = null;
 
 const CARD_ASPECT_RATIO = 920 / 680;
 const CARD_MIN_WIDTH = 560;
@@ -87,66 +85,18 @@ function initResize() {
 
     applyCardSizeForState(card.classList.contains("collapsed"));
 
-    function moveResize(e) {
-        if (!isResizingCard || !resizeStart) return;
-
-        const delta = Math.max(e.clientX - resizeStart.x, (e.clientY - resizeStart.y) * CARD_ASPECT_RATIO);
-        const nextSize = clampCardSize(resizeStart.width + delta);
-        applyCardSize(nextSize);
-        if (typeof ensureCardOnScreen === "function") {
-            ensureCardOnScreen();
+    makeResizable({
+        el: card,
+        handle,
+        wVar: "--card-width",
+        hVar: "--card-height",
+        aspect: CARD_ASPECT_RATIO,
+        clamp: (width) => clampCardSize(width),
+        save: saveCardSize,
+        disabled: () => card.classList.contains("collapsed"),
+        onResize: () => {
+            if (typeof ensureCardOnScreen === "function") ensureCardOnScreen();
         }
-        e.preventDefault();
-    }
-
-    function endResize(e) {
-        if (!isResizingCard) return;
-        isResizingCard = false;
-        resizeStart = null;
-        card.classList.remove("resizing");
-
-        const rect = card.getBoundingClientRect();
-        saveCardSize(clampCardSize(rect.width));
-
-        if (typeof ensureCardOnScreen === "function") {
-            ensureCardOnScreen();
-        }
-
-        window.removeEventListener("pointermove", moveResize);
-        window.removeEventListener("pointerup", endResize);
-        window.removeEventListener("pointercancel", endResize);
-        window.removeEventListener("blur", endResize);
-
-        try {
-            if (e?.pointerId !== undefined && handle.hasPointerCapture(e.pointerId)) {
-                handle.releasePointerCapture(e.pointerId);
-            }
-        } catch {
-            /* Embedded webview may drop capture before pointerup */
-        }
-    }
-
-    handle.addEventListener("pointerdown", (e) => {
-        if (card.classList.contains("collapsed")) return;
-
-        isResizingCard = true;
-        resizeStart = {
-            x: e.clientX,
-            y: e.clientY,
-            width: card.getBoundingClientRect().width
-        };
-        try {
-            handle.setPointerCapture(e.pointerId);
-        } catch {
-            /* Pointer capture is best-effort in the Lively webview */
-        }
-        card.classList.add("resizing");
-        window.addEventListener("pointermove", moveResize);
-        window.addEventListener("pointerup", endResize);
-        window.addEventListener("pointercancel", endResize);
-        window.addEventListener("blur", endResize);
-        e.preventDefault();
-        e.stopPropagation();
     });
 
     window.addEventListener("resize", () => {
