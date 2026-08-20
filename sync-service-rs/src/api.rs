@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
+use axum::extract::{DefaultBodyLimit, Query, State};
 use axum::http::Method;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -22,6 +22,8 @@ use crate::sync_job::AppState;
 use crate::system_monitor;
 use crate::ui_state::{merge_ui_state, read_ui_state};
 
+const UI_STATE_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
+
 pub fn router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -31,7 +33,15 @@ pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/settings", get(get_settings).post(update_settings))
-        .route("/ui-state", get(get_ui_state).post(update_ui_state))
+        .route(
+            "/ui-state",
+            get(get_ui_state)
+                .post(update_ui_state)
+                // The wallpaper stores its selected background as a data URI
+                // inside `wallpaperPrefs`, so a full snapshot runs well past
+                // the 2 MB default and every save would be rejected.
+                .layer(DefaultBodyLimit::max(UI_STATE_BODY_LIMIT_BYTES)),
+        )
         .route("/calendars", get(calendars))
         .route(
             "/events",

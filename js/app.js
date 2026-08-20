@@ -164,6 +164,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof initUiStatePersistenceHooks === "function") {
         initUiStatePersistenceHooks();
     }
+    if (typeof applyHostTransportProperties === "function") {
+        applyHostTransportProperties();
+    }
     if (typeof loadPersistentUiState === "function") {
         await loadPersistentUiState();
     }

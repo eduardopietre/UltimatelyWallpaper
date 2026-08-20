@@ -29,7 +29,13 @@ function applyHostProperty(name, value) {
     switch (name) {
         case "syncPort": {
             const port = parseInt(String(value), 10);
-            if (!isNaN(port) && port > 0) AppConfig.syncPort = port;
+            if (isNaN(port) || port <= 0 || port === AppConfig.syncPort) break;
+            AppConfig.syncPort = port;
+            // Everything persisted lives behind this port, so a correction here
+            // means the earlier ui-state fetch went to the wrong place.
+            if (typeof retryUiStateFromServiceIfNeeded === "function") {
+                retryUiStateFromServiceIfNeeded();
+            }
             break;
         }
         case "showOfflineBadge":
@@ -140,6 +146,25 @@ function livelyPropertyListener(name, value) {
         return;
     }
     applyLivelyPropertyChange(name, value);
+}
+
+/**
+ * Apply queued host properties that persistence itself depends on, before the
+ * persisted state is read. `syncPort` decides which service we talk to, so it
+ * cannot wait behind the rest of the queue (those defer to persisted values and
+ * must run after).
+ */
+function applyHostTransportProperties() {
+    const deferred = [];
+    for (const entry of pendingHostProperties) {
+        if (entry[0] === "syncPort") {
+            applyHostProperty(entry[0], entry[1]);
+        } else {
+            deferred.push(entry);
+        }
+    }
+    pendingHostProperties.length = 0;
+    pendingHostProperties.push(...deferred);
 }
 
 function markHostPersistenceReady() {

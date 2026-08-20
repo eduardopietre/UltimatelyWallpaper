@@ -71,6 +71,28 @@ function buildLauncher() {
     return bar;
 }
 
+function ensureLauncherOnScreen() {
+    const bar = document.getElementById("gadget-launcher");
+    if (!bar) return;
+    ensureGadgetOnScreen({
+        el: bar,
+        xVar: "--launcher-x",
+        yVar: "--launcher-y",
+        save: saveLauncherPosition
+    });
+}
+
+/**
+ * Re-read the persisted launcher position. Called from reapplyPersistedLayout
+ * when the sync-service delivers state after the wallpaper already booted.
+ */
+function reloadLauncherLayout() {
+    const bar = document.getElementById("gadget-launcher");
+    if (!bar) return;
+    applyLauncherPosition(bar);
+    ensureLauncherOnScreen();
+}
+
 function initLauncher() {
     if (document.getElementById("gadget-launcher")) return;
     const bar = buildLauncher();
@@ -85,4 +107,7 @@ function initLauncher() {
         defaultXPct: 1.5,
         defaultYPct: 1.5
     });
+
+    window.addEventListener("resize", ensureLauncherOnScreen);
+    window.requestAnimationFrame(ensureLauncherOnScreen);
 }

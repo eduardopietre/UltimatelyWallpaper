@@ -36,6 +36,10 @@ function clampClockSize(width, height) {
     };
 }
 
+function saveClockPosition(xPct, yPct) {
+    writePersistentStorage("clockPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" }));
+}
+
 function applyClockPosition(card) {
     try {
         const raw = readPersistentStorage("clockPosition");
@@ -154,7 +158,7 @@ function initClockGadget() {
         handle: card,
         xVar: "--clock-x",
         yVar: "--clock-y",
-        save: (xPct, yPct) => writePersistentStorage("clockPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" })),
+        save: saveClockPosition,
         defaultXPct: 40,
         defaultYPct: 40
     });
@@ -172,7 +176,15 @@ function initClockGadget() {
         id: "clock",
         el: card,
         defaultVisible: false,
-        onShow: () => updateClockGadget()
+        bounds: { xVar: "--clock-x", yVar: "--clock-y", save: saveClockPosition },
+        onShow: () => updateClockGadget(),
+        reload: () => {
+            loadClockPrefs();
+            applyClockPosition(card);
+            applyClockSize(card);
+            updateClockFormatButton(card.querySelector(".clock-format-btn"));
+            updateClockGadget();
+        }
     });
 
     updateClockGadget();

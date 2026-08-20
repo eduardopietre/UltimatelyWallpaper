@@ -199,6 +199,10 @@ function buildMonitorMetricRow(metric) {
     return row;
 }
 
+function saveMonitorPosition(xPct, yPct) {
+    writePersistentStorage("monitorPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" }));
+}
+
 function applyMonitorLayout(card) {
     try {
         const rawPos = readPersistentStorage("monitorPosition");
@@ -272,7 +276,7 @@ function initMonitorGadget() {
         handle: card.querySelector(".monitor-header"),
         xVar: "--monitor-x",
         yVar: "--monitor-y",
-        save: (xPct, yPct) => writePersistentStorage("monitorPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" })),
+        save: saveMonitorPosition,
         defaultXPct: 55,
         defaultYPct: 20
     });
@@ -291,7 +295,12 @@ function initMonitorGadget() {
         id: "monitor",
         el: card,
         defaultVisible: false,
+        bounds: { xVar: "--monitor-x", yVar: "--monitor-y", save: saveMonitorPosition },
         onShow: () => startMonitorPolling(),
-        onHide: () => stopMonitorPolling()
+        onHide: () => stopMonitorPolling(),
+        reload: () => {
+            applyMonitorLayout(card);
+            redrawMonitorCharts();
+        }
     });
 }

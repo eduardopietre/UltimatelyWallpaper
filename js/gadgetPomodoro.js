@@ -230,6 +230,10 @@ function buildPomodoroGadget() {
     return card;
 }
 
+function savePomodoroPosition(xPct, yPct) {
+    writePersistentStorage("pomodoroPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" }));
+}
+
 function applyPomodoroPosition(card) {
     try {
         const raw = readPersistentStorage("pomodoroPosition");
@@ -256,7 +260,7 @@ function initPomodoroGadget() {
         handle: card,
         xVar: "--pomodoro-x",
         yVar: "--pomodoro-y",
-        save: (xPct, yPct) => writePersistentStorage("pomodoroPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" })),
+        save: savePomodoroPosition,
         defaultXPct: 45,
         defaultYPct: 30
     });
@@ -264,7 +268,16 @@ function initPomodoroGadget() {
     Gadgets.register({
         id: "pomodoro",
         el: card,
-        defaultVisible: false
+        defaultVisible: false,
+        bounds: { xVar: "--pomodoro-x", yVar: "--pomodoro-y", save: savePomodoroPosition },
+        reload: () => {
+            loadPomodoroPrefs();
+            if (!pomodoroRuntime.running) {
+                pomodoroRuntime.remaining = pomodoroPhaseMinutes(pomodoroRuntime.phase) * 60;
+            }
+            applyPomodoroPosition(card);
+            renderPomodoro();
+        }
     });
 
     renderPomodoro();

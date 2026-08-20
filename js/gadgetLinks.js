@@ -188,6 +188,10 @@ function openLinksEditor() {
     });
 }
 
+function saveLinksPosition(xPct, yPct) {
+    writePersistentStorage("linksPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" }));
+}
+
 function applyLinksPosition(card) {
     try {
         const raw = readPersistentStorage("linksPosition");
@@ -276,7 +280,7 @@ function initLinksGadget() {
         handle: card.querySelector(".links-header"),
         xVar: "--links-x",
         yVar: "--links-y",
-        save: (xPct, yPct) => writePersistentStorage("linksPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" })),
+        save: saveLinksPosition,
         defaultXPct: 50,
         defaultYPct: 45
     });
@@ -293,6 +297,13 @@ function initLinksGadget() {
     Gadgets.register({
         id: "links",
         el: card,
-        defaultVisible: false
+        defaultVisible: false,
+        bounds: { xVar: "--links-x", yVar: "--links-y", save: saveLinksPosition },
+        reload: () => {
+            loadLinksData();
+            applyLinksPosition(card);
+            applyLinksSize(card);
+            renderLinksGrid();
+        }
     });
 }

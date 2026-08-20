@@ -113,6 +113,10 @@ function stopMediaPolling() {
     }
 }
 
+function saveMediaPosition(xPct, yPct) {
+    writePersistentStorage("mediaPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" }));
+}
+
 function applyMediaLayout(card) {
     try {
         const rawPos = readPersistentStorage("mediaPosition");
@@ -244,7 +248,7 @@ function initMediaGadget() {
         handle: card.querySelector(".media-header"),
         xVar: "--media-x",
         yVar: "--media-y",
-        save: (xPct, yPct) => writePersistentStorage("mediaPosition", JSON.stringify({ xPct, yPct, anchor: "topleft" })),
+        save: saveMediaPosition,
         defaultXPct: 55,
         defaultYPct: 60
     });
@@ -261,7 +265,9 @@ function initMediaGadget() {
         id: "media",
         el: card,
         defaultVisible: false,
+        bounds: { xVar: "--media-x", yVar: "--media-y", save: saveMediaPosition },
         onShow: () => startMediaPolling(),
-        onHide: () => stopMediaPolling()
+        onHide: () => stopMediaPolling(),
+        reload: () => applyMediaLayout(card)
     });
 }

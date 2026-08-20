@@ -40,6 +40,28 @@ function pxToPct(x, y) {
 }
 
 /**
+ * Pull a gadget back inside the viewport and persist the corrected position.
+ * A saved layout can land off-screen after a resolution change or a monitor
+ * being unplugged, which otherwise looks exactly like "the gadget did not come
+ * back". Only runs while the gadget is laid out (a hidden element has no box).
+ */
+function ensureGadgetOnScreen({ el, xVar, yVar, save }) {
+    if (!el || el.classList.contains("hidden")) return;
+    if (el.classList.contains("dragging") || el.classList.contains("resizing")) return;
+
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const clamped = clampTopLeftPx(rect.left, rect.top, rect.width, rect.height);
+    if (Math.abs(clamped.x - rect.left) < 0.5 && Math.abs(clamped.y - rect.top) < 0.5) return;
+
+    const pct = pxToPct(clamped.x, clamped.y);
+    el.style.setProperty(xVar, `${pct.xPct}%`);
+    el.style.setProperty(yVar, `${pct.yPct}%`);
+    if (typeof save === "function") save(pct.xPct, pct.yPct);
+}
+
+/**
  * Wire pointer-based dragging on `el` using `handle` as the grab area.
  * Writes `xVar`/`yVar` CSS custom properties (percentages) live and calls
  * `save(xPct, yPct)` when a drag ends. Returns { cancel, isDragging }.
@@ -400,6 +422,22 @@ const Gadgets = (function () {
         registry.set(config.id, config);
     }
 
+    function clampGadgetIntoView(gadget) {
+        if (!gadget?.bounds) return;
+        ensureGadgetOnScreen({
+            el: resolveEl(gadget),
+            xVar: gadget.bounds.xVar,
+            yVar: gadget.bounds.yVar,
+            save: gadget.bounds.save
+        });
+    }
+
+    function scheduleClampIntoView(gadget) {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => clampGadgetIntoView(gadget));
+        });
+    }
+
     function bindLauncherButton(id, btn) {
         launcherButtons.set(id, btn);
         updateLauncherButton(id, isVisible(id));
@@ -434,6 +472,7 @@ const Gadgets = (function () {
 
         if (visible && typeof gadget.onShow === "function") gadget.onShow();
         if (!visible && typeof gadget.onHide === "function") gadget.onHide();
+        if (visible) scheduleClampIntoView(gadget);
 
         updateLauncherButton(id, visible);
 
@@ -461,12 +500,36 @@ const Gadgets = (function () {
         });
     }
 
+    /**
+     * Re-read every gadget's persisted layout and visibility. Called when the
+     * sync-service delivers state after boot (see reapplyPersistedLayout in
+     * persistence.js), so gadgets restore even when the service starts late.
+     * Layout runs before visibility so onShow hooks see the final geometry.
+     */
+    function reloadFromState() {
+        registry.forEach((gadget) => {
+            if (typeof gadget.reload === "function") gadget.reload();
+        });
+        applyVisibilityFromState();
+    }
+
+    function initViewportGuard() {
+        window.addEventListener("resize", () => {
+            registry.forEach((gadget, id) => {
+                if (isVisible(id)) scheduleClampIntoView(gadget);
+            });
+        });
+    }
+
+    initViewportGuard();
+
     return {
         register,
         bindLauncherButton,
         isVisible,
         setVisible,
         toggle,
-        applyVisibilityFromState
+        applyVisibilityFromState,
+        reloadFromState
     };
 })();

@@ -43,7 +43,12 @@ function writeJsonStorage(key, value) {
 function loadNotesPrefs() {
     notesState.collapsed = readPersistentStorage(AppConfig.notesCollapsedKey) === "1";
     notesState.hideCompleted = readPersistentStorage(AppConfig.notesHideCompletedKey) === "1";
-    notesState.selectedPath = readPersistentStorage(AppConfig.notesSelectedFileKey) || "";
+    const storedPath = readPersistentStorage(AppConfig.notesSelectedFileKey) || "";
+    // Never let an empty stored value clear a selection we already resolved;
+    // storage can still be empty on the reload that follows a late service start.
+    if (storedPath || !notesState.selectedPath) {
+        notesState.selectedPath = storedPath;
+    }
     notesState.positionLocked = readPersistentStorage(AppConfig.notesPositionLockKey) === "1";
 }
 
@@ -282,11 +287,16 @@ function setNotesLoading(loading) {
     renderNotesTasks();
 }
 
+/**
+ * Re-point the selection only against a list we can trust. A notes folder that
+ * is not configured yet, or a service that answered before indexing, comes back
+ * as an empty list — clearing the saved path there would permanently lose the
+ * file the user had open, which is the whole point of persisting it.
+ */
 function ensureSelectedNotesFile() {
-    const exists = notesState.files.some((file) => file.path === notesState.selectedPath);
-    if (!exists) {
-        saveNotesSelectedPath(notesState.files[0]?.path || "");
-    }
+    if (!notesState.enabled || !notesState.files.length) return;
+    if (notesState.files.some((file) => file.path === notesState.selectedPath)) return;
+    saveNotesSelectedPath(notesState.files[0]?.path || "");
 }
 
 function renderNotesFileDropdown() {
@@ -949,12 +959,19 @@ function initNotesToolbar() {
 }
 
 function reloadNotesLayout() {
+    const previousPath = notesState.selectedPath;
     loadNotesPrefs();
     setNotesCollapsed(notesState.collapsed, false);
     applyNotesPosition();
     applyNotesSize();
+    setNotesHideCompleted(notesState.hideCompleted, false);
     updateNotesPositionLockUi();
     applyNotesVisibility();
+    renderNotesFileDropdown();
+
+    if (notesState.selectedPath !== previousPath) {
+        loadSelectedNoteFile();
+    }
 }
 
 function initNotesWindow() {
